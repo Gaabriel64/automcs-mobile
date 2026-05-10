@@ -10,6 +10,8 @@ const STORAGE_KEYS = {
   CLIENT_USER: 'telepath_client_user',
 };
 
+const TELEPATH_VERSION = '1.2.2';
+
 async function getUniqueId() {
   let id = await AsyncStorage.getItem('telepath_unique_id');
   if (!id || id.length !== 64) {
@@ -45,7 +47,7 @@ class TelepathService {
   }
 
   _hostPayload() {
-    return { host: this.clientHost, user: this.clientUser, session_id: this.sessionId || '' };
+    return { host: this.clientHost, user: this.clientUser, session_id: this.sessionId || '', 'telepath-version': TELEPATH_VERSION, };
   }
 
   async loadSaved() {
