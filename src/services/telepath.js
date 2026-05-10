@@ -8,6 +8,7 @@ const STORAGE_KEYS = {
   SESSION_ID: 'telepath_session_id',
   CLIENT_HOST: 'telepath_client_host',
   CLIENT_USER: 'telepath_client_user',
+  PROFILES: 'telepath_profiles',  // stockera un tableau de profils
 };
 
 const TELEPATH_VERSION = '1.2.2';
@@ -69,12 +70,81 @@ class TelepathService {
     if (this.sessionId) await AsyncStorage.setItem(STORAGE_KEYS.SESSION_ID, this.sessionId);
     await AsyncStorage.setItem(STORAGE_KEYS.CLIENT_HOST, this.clientHost);
     await AsyncStorage.setItem(STORAGE_KEYS.CLIENT_USER, this.clientUser);
+    await this.saveProfile({
+      host: this.host,
+      port: this.port,
+      token: this.token,
+      sessionId: this.sessionId,
+      clientHost: this.clientHost,
+      clientUser: this.clientUser,
+      updatedAt: Date.now(),
+    });
   }
 
   async clearSession() {
     this.token = null;
     this.sessionId = null;
     await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
+  }
+
+  // Récupère tous les profils sauvegardés
+  async getProfiles() {
+    try {
+      const json = await AsyncStorage.getItem(STORAGE_KEYS.PROFILES);
+      return json ? JSON.parse(json) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // Ajoute ou met à jour un profil (clé = host:port)
+  async saveProfile(profile) {
+    const key = `${profile.host}:${profile.port}`;
+    const profiles = await this.getProfiles();
+    const idx = profiles.findIndex(p => `${p.host}:${p.port}` === key);
+    if (idx !== -1) profiles[idx] = profile;
+    else profiles.unshift(profile); // insère en premier (le plus récent)
+    await AsyncStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
+  }
+
+  // Supprime un profil (si besoin)
+  async removeProfile(host, port) {
+    const key = `${host}:${port}`;
+    let profiles = await this.getProfiles();
+    profiles = profiles.filter(p => `${p.host}:${p.port}` !== key);
+    await AsyncStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
+  }
+
+  // Tente de se connecter sur chaque profil connu ; retourne true si un profil fonctionne
+  async tryReconnect() {
+    const profiles = await this.getProfiles();
+    if (profiles.length === 0) return false;
+    
+    for (const profile of profiles) {
+      // Injecte les paramètres du profil dans le service
+      this.host = profile.host;
+      this.port = profile.port;
+      this.token = profile.token;
+      this.sessionId = profile.sessionId;
+      this.clientHost = profile.clientHost || 'mobile-app';
+      this.clientUser = profile.clientUser || 'mobile-user';
+      
+      try {
+        const status = await this.checkStatus(); // GET /telepath/check_status
+        if (status) {
+          // Si le token est encore valide, on appelle login pour en obtenir un nouveau si besoin
+          const data = await this.login();
+          if (data?.['access-token']) {
+            await this.saveSession();
+            return true; // reconnexion réussie
+          }
+        }
+      } catch {
+        // échec silencieux, on passe au profil suivant
+        continue;
+      }
+    }
+    return false; // aucun profil n'a fonctionné
   }
 
   async _fetch(endpoint, options = {}, timeoutMs = 8000) {

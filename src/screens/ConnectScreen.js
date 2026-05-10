@@ -16,18 +16,9 @@ export default function ConnectScreen({ navigation }) {
 
   useEffect(() => {
     (async () => {
-      const hasSession = await telepathService.loadSaved();
-      if (hasSession) {
-        try {
-          await telepathService.checkStatus();
-          // Try to re-login with existing session
-          const data = await telepathService.login();
-          if (data?.['access-token']) {
-            navigation.replace('Servers');
-            return;
-          }
-        } catch {}
-        await telepathService.clearSession();
+      const success = await telepathService.tryReconnect();
+      if (success) {
+        navigation.replace('Servers');
       }
     })();
   }, []);
