@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Switch, TextInput,
-  TouchableOpacity, Modal, Alert, ActivityIndicator, Platform
+  TouchableOpacity, Modal, Alert, ActivityIndicator
 } from 'react-native';
 import { telepathService } from '../services/telepath';
-import { colors, spacing, radius } from '../theme';
+import { colors, spacing, radius, fonts } from '../theme';
 import Slider from '@react-native-community/slider';
 
+// ── RAM Slider ────────────────────────────────────────────────────────────────
 function RamSlider({ value, onSave }) {
-  const [local, setLocal] = useState(value === 'auto' || value === '' ? 0 : Math.min(Math.max(parseInt(value) || 0, 0), 12));
+  const [local, setLocal]   = useState(value === 'auto' || value === '' ? 0 : Math.min(Math.max(parseInt(value) || 0, 0), 12));
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved]   = useState(false);
 
   useEffect(() => {
     setLocal(value === 'auto' || value === '' ? 0 : Math.min(Math.max(parseInt(value) || 0, 0), 12));
@@ -31,37 +32,34 @@ function RamSlider({ value, onSave }) {
       <Text style={styles.rowLabel}>RAM dédiée</Text>
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         {saving && <ActivityIndicator size="small" color={colors.accent} />}
-        {saved && !saving && <Text style={{ color: colors.green, fontSize: 12 }}>✓</Text>}
+        {saved && !saving && <Text style={styles.savedMark}>✓</Text>}
         <View style={{ flex: 1 }}>
           <Slider
             style={{ width: '100%', height: 40 }}
-            minimumValue={0}
-            maximumValue={12}
-            step={1}
+            minimumValue={0} maximumValue={12} step={1}
             value={local}
             onSlidingComplete={commit}
             onValueChange={setLocal}
             minimumTrackTintColor={colors.accent}
             maximumTrackTintColor={colors.border}
-            thumbTintColor={colors.accentLight}
+            thumbTintColor={colors.accent}
           />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ color: colors.textSecondary, fontSize: 10 }}>Auto</Text>
-            <Text style={{ color: colors.textSecondary, fontSize: 10 }}>12 Go</Text>
+            <Text style={styles.sliderTick}>Auto</Text>
+            <Text style={styles.sliderTick}>12 Go</Text>
           </View>
         </View>
-        <Text style={{ color: colors.textPrimary, fontWeight: '600', minWidth: 40, textAlign: 'center' }}>
-          {local === 0 ? 'Auto' : local + ' Go'}
-        </Text>
+        <Text style={styles.sliderValue}>{local === 0 ? 'Auto' : `${local} Go`}</Text>
       </View>
     </View>
   );
 }
 
-// ---------- Picker ----------
+// ── Picker ────────────────────────────────────────────────────────────────────
 function SimplePicker({ selectedValue, onValueChange, items }) {
   const [visible, setVisible] = useState(false);
   const selected = items.find(i => String(i.value) === String(selectedValue));
+
   return (
     <>
       <TouchableOpacity style={styles.pickerBtn} onPress={() => setVisible(true)}>
@@ -70,14 +68,19 @@ function SimplePicker({ selectedValue, onValueChange, items }) {
       </TouchableOpacity>
       <Modal visible={visible} transparent animationType="fade">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setVisible(false)}>
-          <View style={styles.modalContent}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalStripe} />
+              <Text style={styles.modalTitle}>Sélectionner</Text>
+            </View>
             {items.map(item => (
               <TouchableOpacity
                 key={String(item.value)}
-                style={styles.modalItem}
+                style={[styles.modalItem, String(item.value) === String(selectedValue) && styles.modalItemActive]}
                 onPress={() => { onValueChange(item.value); setVisible(false); }}
               >
-                <Text style={[styles.modalItemText, String(item.value) === String(selectedValue) && styles.modalItemSelected]}>
+                {String(item.value) === String(selectedValue) && <View style={styles.modalItemDot} />}
+                <Text style={[styles.modalItemText, String(item.value) === String(selectedValue) && styles.modalItemTextActive]}>
                   {item.label}
                 </Text>
               </TouchableOpacity>
@@ -89,13 +92,15 @@ function SimplePicker({ selectedValue, onValueChange, items }) {
   );
 }
 
+// ── Row primitives ────────────────────────────────────────────────────────────
 function SwitchRow({ label, value, onSave }) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
       <Switch
-        trackColor={{ false: colors.border, true: colors.accent }}
-        thumbColor={value ? colors.accentLight : '#888'}
+        trackColor={{ false: colors.bgInput, true: colors.accentDim }}
+        thumbColor={value ? colors.accent : colors.textMuted}
+        ios_backgroundColor={colors.bgInput}
         value={!!value}
         onValueChange={v => onSave(v)}
       />
@@ -104,9 +109,9 @@ function SwitchRow({ label, value, onSave }) {
 }
 
 function InputRow({ label, value, onSave, keyboardType = 'default', placeholder = '' }) {
-  const [local, setLocal] = useState(String(value ?? ''));
+  const [local, setLocal]   = useState(String(value ?? ''));
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved]   = useState(false);
   useEffect(() => { setLocal(String(value ?? '')); }, [value]);
 
   const commit = async () => {
@@ -121,9 +126,9 @@ function InputRow({ label, value, onSave, keyboardType = 'default', placeholder 
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <View style={styles.inputWrap}>
         {saving && <ActivityIndicator size="small" color={colors.accent} />}
-        {saved && !saving && <Text style={{ color: colors.green, fontSize: 12 }}>✓</Text>}
+        {saved && !saving && <Text style={styles.savedMark}>✓</Text>}
         <TextInput
           style={styles.input}
           value={local}
@@ -132,7 +137,7 @@ function InputRow({ label, value, onSave, keyboardType = 'default', placeholder 
           onSubmitEditing={commit}
           keyboardType={keyboardType}
           placeholder={placeholder}
-          placeholderTextColor={colors.textSecondary}
+          placeholderTextColor={colors.textMuted}
           returnKeyType="done"
         />
       </View>
@@ -142,13 +147,13 @@ function InputRow({ label, value, onSave, keyboardType = 'default', placeholder 
 
 function PickerRow({ label, value, onSave, items }) {
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved]   = useState(false);
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <View style={styles.inputWrap}>
         {saving && <ActivityIndicator size="small" color={colors.accent} />}
-        {saved && !saving && <Text style={{ color: colors.green, fontSize: 12 }}>✓</Text>}
+        {saved && !saving && <Text style={styles.savedMark}>✓</Text>}
         <SimplePicker
           selectedValue={value}
           onValueChange={async v => {
@@ -165,33 +170,37 @@ function PickerRow({ label, value, onSave, items }) {
   );
 }
 
-function SectionTitle({ title }) {
+// ── Section title ─────────────────────────────────────────────────────────────
+function SectionHeader({ title }) {
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionText}>{title}</Text>
+    <View style={styles.sectionHeader}>
+      <View style={styles.sectionStripe} />
+      <Text style={styles.sectionTitle}>{title.toUpperCase()}</Text>
     </View>
   );
 }
 
+// ── Constants ─────────────────────────────────────────────────────────────────
 const GAMEMODES = [
-  { label: 'Survie (0)', value: 0 },
-  { label: 'Créatif (1)', value: 1 },
-  { label: 'Aventure (2)', value: 2 },
-  { label: 'Spectateur (3)', value: 3 },
+  { label: 'Survie', value: 0 },
+  { label: 'Créatif', value: 1 },
+  { label: 'Aventure', value: 2 },
+  { label: 'Spectateur', value: 3 },
 ];
 const DIFFICULTIES = [
-  { label: 'Paisible (0)', value: 0 },
-  { label: 'Facile (1)', value: 1 },
-  { label: 'Normal (2)', value: 2 },
-  { label: 'Difficile (3)', value: 3 },
+  { label: 'Paisible', value: 0 },
+  { label: 'Facile', value: 1 },
+  { label: 'Normal', value: 2 },
+  { label: 'Difficile', value: 3 },
 ];
 
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function ServerSettingsScreen({ route }) {
   const { serverName } = route.params;
-  const [props, setProps] = useState(null);
-  const [cfg, setCfg] = useState(null);
+  const [props, setProps]   = useState(null);
+  const [cfg, setCfg]       = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError]   = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -200,12 +209,8 @@ export default function ServerSettingsScreen({ route }) {
           telepathService._post('ServerObject/_sync_attr', { name: 'server_properties' }),
           telepathService._post('ServerObject/_sync_attr', { name: 'config_file' }),
         ]);
-        console.log('[Settings] server_properties keys:', Object.keys(sp || {}));
-        console.log('[Settings] config_file:', JSON.stringify(cf || {}).slice(0, 300));
-        setProps(sp || {});
-        setCfg(cf || {});
+        setProps(sp || {}); setCfg(cf || {});
       } catch (e) {
-        console.warn('[Settings] load error:', e.message);
         setError(e.message);
       } finally {
         setLoading(false);
@@ -213,34 +218,23 @@ export default function ServerSettingsScreen({ route }) {
     })();
   }, [serverName]);
 
-  // Save server.properties via write_config(remote_data={...})
-  // The key insight: remote_data must be wrapped as {remote_data: {...}}
-  // because api_wrapper passes kwargs directly to ServerObject.write_config(remote_data)
   const saveProp = useCallback(async (key, value) => {
     const newProps = { ...props, [key]: value };
     setProps(newProps);
     try {
-      console.log(`[Settings] saving prop ${key} =`, value);
-      const result = await telepathService._post('ServerObject/write_config', {
-        remote_data: {
-          config_file: cfg,
-          server_properties: newProps,
-        }
+      await telepathService._post('ServerObject/write_config', {
+        remote_data: { config_file: cfg, server_properties: newProps },
       });
-      console.log(`[Settings] write_config result:`, result);
     } catch (e) {
-      console.warn(`[Settings] write_config error (${key}):`, e.message);
       Alert.alert('Erreur', `${key}: ${e.message}`);
       setProps(prev => ({ ...prev, [key]: props[key] }));
     }
   }, [props, cfg]);
 
-  // Save auto-mcs config via dedicated endpoints
   const saveRam = useCallback(async (value) => {
     try {
-      const result = await telepathService._post('ServerObject/set_ram_limit', { value });
-      console.log('[Settings] set_ram_limit:', result);
-      setCfg(prev => ({...prev, general: {...(prev?.general || {}), allocatedmemory: value}}));
+      await telepathService._post('ServerObject/set_ram_limit', { value });
+      setCfg(prev => ({ ...prev, general: { ...(prev?.general || {}), allocatedmemory: value } }));
     } catch (e) {
       Alert.alert('Erreur RAM', e.message);
     }
@@ -248,45 +242,51 @@ export default function ServerSettingsScreen({ route }) {
 
   const saveAutoUpdate = useCallback(async (enabled) => {
     try {
-      const result = await telepathService._post('ServerObject/enable_auto_update', { enabled });
-      console.log('[Settings] enable_auto_update:', result);
-      setCfg(prev => ({...prev, general: {...(prev?.general || {}), updateauto: String(enabled)}}));
+      await telepathService._post('ServerObject/enable_auto_update', { enabled });
+      setCfg(prev => ({ ...prev, general: { ...(prev?.general || {}), updateauto: String(enabled) } }));
     } catch (e) {
-      Alert.alert('Erreur auto-update', e.message);
+      Alert.alert('Erreur', e.message);
     }
   }, []);
 
   const saveFlags = useCallback(async (flags) => {
     try {
-      const result = await telepathService._post('ServerObject/update_flags', { flags });
-      console.log('[Settings] update_flags:', result);
-      setCfg(prev => ({...prev, general: {...(prev?.general || {}), customflags: flags}}));
+      await telepathService._post('ServerObject/update_flags', { flags });
+      setCfg(prev => ({ ...prev, general: { ...(prev?.general || {}), customflags: flags } }));
     } catch (e) {
-      Alert.alert('Erreur flags', e.message);
+      Alert.alert('Erreur', e.message);
     }
   }, []);
 
-  if (loading) return (
-    <View style={styles.centered}>
-      <ActivityIndicator color={colors.accent} size="large" />
-      <Text style={{ color: colors.textSecondary, marginTop: spacing.md }}>Chargement...</Text>
-    </View>
-  );
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator color={colors.accent} size="large" />
+        <Text style={styles.loadingText}>Chargement des paramètres…</Text>
+      </View>
+    );
+  }
 
-  if (error) return (
-    <View style={styles.centered}>
-      <Text style={{ color: colors.red, textAlign: 'center', padding: spacing.lg }}>{error}</Text>
-    </View>
-  );
+  if (error) {
+    return (
+      <View style={styles.centered}>
+        <Text style={{ fontSize: 36 }}>⚠️</Text>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
 
   const g = cfg?.general || {};
-  const isBool = v => v === true || v === 'true';
+  const isBool    = v => v === true || v === 'true';
   const isNotFalse = v => v !== false && v !== 'false';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
-
-      <SectionTitle title="Général" />
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+    >
+      <SectionHeader title="Général" />
       <InputRow label="Message du jour" value={props?.motd} onSave={v => saveProp('motd', v)} />
       <InputRow label="Nom du monde" value={props?.['level-name']} onSave={v => saveProp('level-name', v)} />
       <InputRow label="Graine" value={props?.['level-seed']} onSave={v => saveProp('level-seed', v)} />
@@ -296,148 +296,126 @@ export default function ServerSettingsScreen({ route }) {
       <InputRow label="Joueurs max" value={String(props?.['max-players'] ?? '')} onSave={v => saveProp('max-players', parseInt(v) || 20)} keyboardType="number-pad" />
       <InputRow label="Port" value={String(props?.['server-port'] ?? '')} onSave={v => saveProp('server-port', parseInt(v) || 25565)} keyboardType="number-pad" />
 
-      <SectionTitle title="Gameplay" />
+      <SectionHeader title="Gameplay" />
       <SwitchRow label="PvP" value={isNotFalse(props?.pvp)} onSave={v => saveProp('pvp', v)} />
       <SwitchRow label="Blocs de commande" value={isBool(props?.['enable-command-block'])} onSave={v => saveProp('enable-command-block', v)} />
       <SwitchRow label="Vol autorisé" value={isBool(props?.['allow-flight'])} onSave={v => saveProp('allow-flight', v)} />
       <SwitchRow label="Nether" value={isNotFalse(props?.['allow-nether'])} onSave={v => saveProp('allow-nether', v)} />
       <SwitchRow label="Générer structures" value={isNotFalse(props?.['generate-structures'])} onSave={v => saveProp('generate-structures', v)} />
-      <SwitchRow label="Mode forcé" value={isBool(props?.['force-gamemode'])} onSave={v => saveProp('force-gamemode', v)} />
       <SwitchRow label="Animaux" value={isNotFalse(props?.['spawn-animals'])} onSave={v => saveProp('spawn-animals', v)} />
       <SwitchRow label="Monstres" value={isNotFalse(props?.['spawn-monsters'])} onSave={v => saveProp('spawn-monsters', v)} />
       <SwitchRow label="PNJs" value={isNotFalse(props?.['spawn-npcs'])} onSave={v => saveProp('spawn-npcs', v)} />
       <InputRow label="Distance de vue" value={String(props?.['view-distance'] ?? '')} onSave={v => saveProp('view-distance', parseInt(v) || 10)} keyboardType="number-pad" />
       <InputRow label="Simulation" value={String(props?.['simulation-distance'] ?? '')} onSave={v => saveProp('simulation-distance', parseInt(v) || 10)} keyboardType="number-pad" />
 
-      <SectionTitle title="Connexion" />
+      <SectionHeader title="Connexion" />
       <SwitchRow label="Mode en ligne" value={isNotFalse(props?.['online-mode'])} onSave={v => saveProp('online-mode', v)} />
       <SwitchRow label="Whitelist" value={isBool(props?.['white-list'])} onSave={v => saveProp('white-list', v)} />
 
-      <SectionTitle title="auto-mcs" />
-      <InputRow
-        label="RAM dédiée (Go)"
-        value={g?.allocatedmemory ?? g?.allocatedMemory ?? ''}
-        onSave={saveRam}
-        keyboardType="numeric"
-        placeholder="auto"
-      />
-      <SwitchRow
-        label="Mise à jour auto"
-        value={isNotFalse(g?.updateauto ?? g?.updateAuto)}
-        onSave={saveAutoUpdate}
-      />
-      <InputRow
-        label="Flags Java"
-        value={g?.customflags ?? g?.customFlags ?? ''}
-        onSave={saveFlags}
-        placeholder="-Xmx2G -Xms2G"
-      />
+      <SectionHeader title="auto-mcs" />
+      <RamSlider value={g?.allocatedmemory ?? g?.allocatedMemory ?? ''} onSave={saveRam} />
+      <SwitchRow label="Mise à jour auto" value={isNotFalse(g?.updateauto ?? g?.updateAuto)} onSave={saveAutoUpdate} />
+      <InputRow label="Flags Java" value={g?.customflags ?? g?.customFlags ?? ''} onSave={saveFlags} placeholder="-Xmx2G -Xms2G" />
 
-      <SectionTitle title="Avancé" />
-      {/* Ces champs apparaissent dans les captures d'écran mais ne sont pas encore présents */}
-      <InputRow
-        label="Adresse IP"
-        value={props?.['server-ip'] ?? ''}
-        onSave={v => saveProp('server-ip', v)}
-        placeholder="vide = toutes"
-      />
-      <InputRow
-        label="Hauteur max"
-        value={String(props?.['max-build-height'] ?? '')}
-        onSave={v => saveProp('max-build-height', parseInt(v) || 256)}
-        keyboardType="number-pad"
-      />
-      <InputRow
-        label="Monde (level-type)"
-        value={props?.['level-type'] ?? ''}
-        onSave={v => saveProp('level-type', v)}
-        placeholder="normal"
-      />
-      <InputRow
-        label="Tick max (ms)"
-        value={String(props?.['max-tick-time'] ?? '')}
-        onSave={v => saveProp('max-tick-time', parseInt(v) || 60000)}
-        keyboardType="number-pad"
-      />
-      <InputRow
-        label="Protection spawn"
-        value={String(props?.['spawn-protection'] ?? '')}
-        onSave={v => saveProp('spawn-protection', parseInt(v) || 16)}
-        keyboardType="number-pad"
-      />
-      <InputRow
-        label="Compression réseau"
-        value={String(props?.['network-compression-threshold'] ?? '')}
-        onSave={v => saveProp('network-compression-threshold', parseInt(v) || 256)}
-        keyboardType="number-pad"
-      />
-      <InputRow
-        label="Taille max monde"
-        value={String(props?.['max-world-size'] ?? '')}
-        onSave={v => saveProp('max-world-size', parseInt(v) || 29999984)}
-        keyboardType="number-pad"
-      />
-      <SwitchRow
-        label="Snooper activé"
-        value={isNotFalse(props?.['snooper-enabled'])}
-        onSave={v => saveProp('snooper-enabled', v)}
-      />
-      <SwitchRow
-        label="Whitelist stricte"
-        value={isBool(props?.['enforce-whitelist'])}
-        onSave={v => saveProp('enforce-whitelist', v)}
-      />
-      <SwitchRow
-        label="Profils sécurisés"
-        value={isNotFalse(props?.['enforce-secure-profile'])}
-        onSave={v => saveProp('enforce-secure-profile', v)}
-      />
-      <InputRow
-        label="Pack de ressource"
-        value={props?.['resource-pack'] ?? ''}
-        onSave={v => saveProp('resource-pack', v)}
-        placeholder="URL ou vide"
-      />
-      <InputRow
-        label="Hash pack ressource"
-        value={props?.['resource-pack-hash'] ?? ''}
-        onSave={v => saveProp('resource-pack-hash', v)}
-        placeholder="SHA-1"
-      />
+      <SectionHeader title="Avancé" />
+      <InputRow label="Adresse IP" value={props?.['server-ip'] ?? ''} onSave={v => saveProp('server-ip', v)} placeholder="toutes les interfaces" />
+      <InputRow label="Hauteur max" value={String(props?.['max-build-height'] ?? '')} onSave={v => saveProp('max-build-height', parseInt(v) || 256)} keyboardType="number-pad" />
+      <InputRow label="Level type" value={props?.['level-type'] ?? ''} onSave={v => saveProp('level-type', v)} placeholder="normal" />
+      <InputRow label="Tick max (ms)" value={String(props?.['max-tick-time'] ?? '')} onSave={v => saveProp('max-tick-time', parseInt(v) || 60000)} keyboardType="number-pad" />
+      <InputRow label="Protection spawn" value={String(props?.['spawn-protection'] ?? '')} onSave={v => saveProp('spawn-protection', parseInt(v) || 16)} keyboardType="number-pad" />
+      <InputRow label="Compression réseau" value={String(props?.['network-compression-threshold'] ?? '')} onSave={v => saveProp('network-compression-threshold', parseInt(v) || 256)} keyboardType="number-pad" />
+      <SwitchRow label="Snooper" value={isNotFalse(props?.['snooper-enabled'])} onSave={v => saveProp('snooper-enabled', v)} />
+      <SwitchRow label="Whitelist stricte" value={isBool(props?.['enforce-whitelist'])} onSave={v => saveProp('enforce-whitelist', v)} />
+      <SwitchRow label="Profils sécurisés" value={isNotFalse(props?.['enforce-secure-profile'])} onSave={v => saveProp('enforce-secure-profile', v)} />
+      <InputRow label="Pack de ressource" value={props?.['resource-pack'] ?? ''} onSave={v => saveProp('resource-pack', v)} placeholder="URL" />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: spacing.md },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
-  section: {
-    marginTop: spacing.lg, marginBottom: spacing.xs,
-    paddingBottom: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border,
+  container: { flex: 1, backgroundColor: colors.bg },
+  content: { paddingHorizontal: spacing.md, paddingBottom: 60 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, gap: spacing.md },
+  loadingText: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm },
+  errorText: { color: colors.red, textAlign: 'center', paddingHorizontal: spacing.lg, fontSize: 14 },
+
+  // Section header
+  sectionHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginTop: spacing.xl, marginBottom: spacing.xs,
+    paddingBottom: spacing.xs,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  sectionText: { color: colors.accent, fontWeight: '700', fontSize: 13, textTransform: 'uppercase', letterSpacing: 1 },
+  sectionStripe: { width: 3, height: 14, borderRadius: 2, backgroundColor: colors.accent },
+  sectionTitle: {
+    fontSize: 10, fontWeight: '800', letterSpacing: 2,
+    color: colors.accent, textTransform: 'uppercase',
+  },
+
+  // Row
   row: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.04)', minHeight: 46,
+    paddingVertical: 10, minHeight: 46,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(99,143,196,0.06)',
   },
   rowLabel: { color: colors.textPrimary, fontSize: 14, flex: 1, paddingRight: spacing.sm },
+
+  // Input
+  inputWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   input: {
     backgroundColor: colors.bgInput, color: colors.textPrimary,
-    borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 6,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm, paddingVertical: 6,
     fontSize: 13, minWidth: 110, textAlign: 'right',
     borderWidth: 1, borderColor: colors.border,
+    fontFamily: fonts.mono,
   },
+
+  // Picker
   pickerBtn: {
     backgroundColor: colors.bgInput, borderRadius: radius.sm,
     paddingHorizontal: spacing.sm, paddingVertical: 6,
     borderWidth: 1, borderColor: colors.border, minWidth: 110,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6,
   },
-  pickerValue: { color: colors.textPrimary, fontSize: 13 },
+  pickerValue:   { color: colors.textPrimary, fontSize: 13 },
   pickerChevron: { color: colors.textSecondary, fontSize: 11 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: spacing.xl },
-  modalContent: { backgroundColor: colors.bgCard, borderRadius: radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
-  modalItem: { padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
+
+  // Modal
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center', padding: spacing.xl,
+  },
+  modalBox: {
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.lg, overflow: 'hidden',
+    borderWidth: 1, borderColor: colors.border,
+  },
+  modalHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    padding: spacing.md,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  modalStripe: { width: 3, height: 14, borderRadius: 2, backgroundColor: colors.accent },
+  modalTitle:  {
+    fontSize: 11, fontWeight: '800', letterSpacing: 1.5,
+    color: colors.accent, textTransform: 'uppercase',
+  },
+  modalItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    padding: spacing.md,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  modalItemActive: { backgroundColor: colors.accentDim },
+  modalItemDot: {
+    width: 6, height: 6, borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
   modalItemText: { color: colors.textPrimary, fontSize: 15 },
-  modalItemSelected: { color: colors.accentLight, fontWeight: '700' },
+  modalItemTextActive: { color: colors.accent, fontWeight: '700' },
+
+  // Feedback
+  savedMark: { color: colors.green, fontSize: 12, fontWeight: '700' },
+  sliderTick: { color: colors.textMuted, fontSize: 10 },
+  sliderValue: { color: colors.textPrimary, fontWeight: '700', minWidth: 48, textAlign: 'center', fontSize: 13 },
 });

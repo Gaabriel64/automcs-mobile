@@ -1,5 +1,7 @@
 import 'react-native-gesture-handler';
-import React from 'react';
+import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
+import * as NavigationBar from 'expo-navigation-bar';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -15,6 +17,14 @@ import { colors } from './src/theme';
 const Stack = createStackNavigator();
 
 export default function App() {
+
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      NavigationBar.setBackgroundColorAsync(colors.bg);
+      NavigationBar.setButtonStyleAsync('light');
+    }
+  }, [])
+
   return (
     <NavigationContainer>
       <StatusBar style="light" backgroundColor={colors.bg} />
@@ -25,6 +35,8 @@ export default function App() {
           headerTitleStyle: { fontWeight: '700', fontSize: 17 },
           headerBackTitleVisible: false,
           cardStyle: { backgroundColor: colors.bg },
+          sceneContainerStyle: { backgroundColor: colors.bg },
+          animationEnabled: false,
         }}
       >
         <Stack.Screen name="Connect" component={ConnectScreen} options={{ headerShown: false }} />

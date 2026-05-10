@@ -27,7 +27,9 @@
       "permissions": [
         "INTERNET"
       ],
-      "package": "com.gab.automcs"
+      "package": "com.gab.automcs",
+      "backgroundColor": "#0f1117",
+      "edgeToEdgeEnabled": false
     },
     "plugins": [
       [

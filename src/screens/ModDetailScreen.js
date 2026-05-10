@@ -1,26 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Linking, Alert, ActivityIndicator
+  View, Text, StyleSheet, TouchableOpacity, Linking, Alert, ActivityIndicator, ScrollView
 } from 'react-native';
 import { telepathService } from '../services/telepath';
-import { colors, spacing, radius } from '../theme';
+import { colors, spacing, radius, fonts } from '../theme';
 
 export default function ModDetailScreen({ route, navigation }) {
   const { modItem, serverName, serverType, isInstalled, addonEnabled } = route.params;
-  const [installing, setInstalling] = useState(false);
-  const [webData, setWebData] = useState(null);
+  const [installing, setInstalling]   = useState(false);
+  const [webData, setWebData]         = useState(null);
   const [enabledState, setEnabledState] = useState(addonEnabled ?? false);
-  const [serverVersion, setServerVersion] = useState(null); // ex: "1.21.1"
+  const [serverVersion, setServerVersion] = useState(null);
   const [loadingVersion, setLoadingVersion] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
-        // Récupère la version du serveur depuis l’API (le serveur a déjà été ouvert)
         const version = await telepathService._post('ServerObject/_sync_attr', { name: 'version' });
         setServerVersion(version?.trim());
       } catch (e) {
-        console.warn('Impossible de récupérer la version du serveur', e);
+        console.warn('Impossible de récupérer la version', e);
       } finally {
         setLoadingVersion(false);
       }
@@ -29,16 +28,12 @@ export default function ModDetailScreen({ route, navigation }) {
 
   useEffect(() => {
     (async () => {
-      // Ne rien faire si on a déjà une URL (objet web) ou si pas d'id
       if (modItem.url || !modItem.id) return;
       try {
         const online = await telepathService._post('AddonManager/get_addon', {
-          addon_name: modItem.id, // ou modItem.name
-          online: true,
+          addon_name: modItem.id, online: true,
         });
-        if (online && online.url) {
-          setWebData(online);
-        }
+        if (online?.url) setWebData(online);
       } catch (e) {
         console.warn('Impossible de récupérer les infos en ligne', e);
       }
@@ -46,56 +41,47 @@ export default function ModDetailScreen({ route, navigation }) {
   }, [modItem]);
 
   const displayItem = webData || modItem;
-  // Vérifie si la version du serveur est dans les versions supportées
-  const isSupported = serverVersion && displayItem.versions && displayItem.versions.includes(serverVersion);
-
-  const openModrinth = () => {
-    if (displayItem.url) {
-      Linking.openURL(displayItem.url);
-    }
-  };
+  const isSupported = serverVersion && displayItem.versions?.includes(serverVersion);
 
   const handleInstall = async () => {
     setInstalling(true);
     try {
-      const result = await telepathService._post('AddonManager/download_addon', { addon: modItem.id });
+      await telepathService._post('AddonManager/download_addon', { addon: modItem.id });
       Alert.alert('Succès', `${modItem.name} a bien été installé !`);
       navigation.goBack();
-      } catch (e) {
+    } catch (e) {
       Alert.alert('Erreur', `Impossible d'installer le mod : ${e.message}`);
-      } finally {
+    } finally {
       setInstalling(false);
-      }
+    }
   };
 
   const handleDelete = () => {
     Alert.alert('Supprimer', `Supprimer définitivement ${modItem.name} ?`, [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Supprimer', style: 'destructive', onPress: async () => {
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Supprimer', style: 'destructive', onPress: async () => {
         setInstalling(true);
         try {
-            await telepathService._post('AddonManager/delete_addon', { addon: modItem.id });
-            Alert.alert('Succès', `${modItem.name} supprimé.`);
-            navigation.goBack();
+          await telepathService._post('AddonManager/delete_addon', { addon: modItem.id });
+          navigation.goBack();
         } catch (e) {
-            Alert.alert('Erreur', `Suppression échouée : ${e.message}`);
+          Alert.alert('Erreur', e.message);
         } finally {
-            setInstalling(false);
+          setInstalling(false);
         }
-      }}
+      }},
     ]);
   };
 
-  const handleToggleState = async () => {
+  const handleToggle = async () => {
     setInstalling(true);
     try {
-        await telepathService._post('AddonManager/addon_state', { addon: modItem.id, enabled: !enabledState });
-        setEnabledState(!enabledState);
-        Alert.alert('Succès', `${modItem.name} est maintenant ${!enabledState ? 'activé' : 'désactivé'}.`);
+      await telepathService._post('AddonManager/addon_state', { addon: modItem.id, enabled: !enabledState });
+      setEnabledState(!enabledState);
     } catch (e) {
-        Alert.alert('Erreur', `Impossible de changer l'état : ${e.message}`);
+      Alert.alert('Erreur', e.message);
     } finally {
-        setInstalling(false);
+      setInstalling(false);
     }
   };
 
@@ -103,208 +89,211 @@ export default function ModDetailScreen({ route, navigation }) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={{ color: colors.textSecondary, marginTop: spacing.md }}>Vérification de la compatibilité…</Text>
+        <Text style={styles.loadingText}>Vérification de compatibilité…</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.name}>{displayItem.name}</Text>
-        <Text style={styles.author}>par {displayItem.author || 'Inconnu'}</Text>
-      </View>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-      {/* Bandeau de compatibilité */}
-      {isSupported ? (
-        <View style={styles.compatBannerSupported}>
-          <Text style={styles.compatTextSupported}>✅ Supporté !</Text>
+        {/* ── Header ── */}
+        <View style={styles.header}>
+          <View style={styles.modIcon}>
+            <Text style={styles.modIconText}>{displayItem.name?.[0]?.toUpperCase() || '?'}</Text>
+          </View>
+          <View style={styles.headerText}>
+            <Text style={styles.name}>{displayItem.name}</Text>
+            <Text style={styles.author}>par {displayItem.author || 'Inconnu'}</Text>
+          </View>
         </View>
-      ) : (
-        <View style={styles.compatBannerUnsupported}>
-          <Text style={styles.compatTextUnsupported}>⚠️ Non supporté :</Text>
-          {displayItem.versions && (
-            <Text style={styles.versionsList}>
-              {displayItem.versions.join(', ')}
+
+        {/* ── Compatibility banner ── */}
+        {displayItem.versions && (
+          isSupported ? (
+            <View style={[styles.compatBanner, styles.compatOk]}>
+              <Text style={styles.compatIcon}>✓</Text>
+              <View>
+                <Text style={[styles.compatTitle, { color: colors.green }]}>COMPATIBLE</Text>
+                <Text style={styles.compatSub}>Supporte Minecraft {serverVersion}</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={[styles.compatBanner, styles.compatWarn]}>
+              <Text style={styles.compatIcon}>!</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.compatTitle, { color: colors.orange }]}>COMPATIBILITÉ INCONNUE</Text>
+                <Text style={styles.compatSub} numberOfLines={2}>
+                  Versions supportées : {displayItem.versions.join(', ')}
+                </Text>
+              </View>
+            </View>
+          )
+        )}
+
+        {/* ── Description ── */}
+        {(displayItem.subtitle || displayItem.description) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>À PROPOS</Text>
+            <Text style={styles.description}>
+              {displayItem.subtitle || displayItem.description}
             </Text>
-          )}
-        </View>
-      )}
+          </View>
+        )}
 
-      <Text style={styles.description}>
-        {displayItem.subtitle || displayItem.description || 'Aucune description'}
-      </Text>
+        {/* ── Modrinth link ── */}
+        {displayItem.url && (
+          <TouchableOpacity style={styles.linkBtn} onPress={() => Linking.openURL(displayItem.url)}>
+            <Text style={styles.linkBtnText}>↗ Voir sur Modrinth</Text>
+          </TouchableOpacity>
+        )}
 
-      <TouchableOpacity style={styles.linkBtn} onPress={openModrinth}>
-        <Text style={styles.linkBtnText}>↗ Voir sur Modrinth</Text>
-      </TouchableOpacity>
+        <View style={{ height: spacing.xl * 2 }} />
+      </ScrollView>
 
-      {isInstalled && (
-        <TouchableOpacity
-            style={[styles.toggleBtnDetail, installing && styles.installBtnDisabled]}
-            onPress={handleToggleState}
+      {/* ── Bottom action area ── */}
+      <View style={styles.actions}>
+        {isInstalled && (
+          <TouchableOpacity
+            style={[styles.toggleBtn, enabledState ? styles.toggleBtnOn : styles.toggleBtnOff, installing && styles.actionDisabled]}
+            onPress={handleToggle}
             disabled={installing}
-        >
-            <Text style={styles.toggleBtnDetailText}>
-                {enabledState ? 'Désactiver' : 'Activer'}
-            </Text>
-        </TouchableOpacity>
-      )}
+          >
+            {installing
+              ? <ActivityIndicator color={colors.accent} size="small" />
+              : <Text style={styles.toggleBtnText}>{enabledState ? '⏸ Désactiver' : '▶ Activer'}</Text>}
+          </TouchableOpacity>
+        )}
 
-      {isInstalled ? (
-        <TouchableOpacity
-            style={[styles.deleteBtn, installing && styles.deleteBtnDisabled]}
+        {isInstalled ? (
+          <TouchableOpacity
+            style={[styles.deleteBtn, installing && styles.actionDisabled]}
             onPress={handleDelete}
             disabled={installing}
-        >
-            {installing ? (
-            <ActivityIndicator color="#fff" />
-            ) : (
-            <Text style={styles.deleteBtnText}>🗑️ Supprimer</Text>
-            )}
-        </TouchableOpacity>
+          >
+            {installing
+              ? <ActivityIndicator color={colors.red} size="small" />
+              : <Text style={styles.deleteBtnText}>🗑  Supprimer</Text>}
+          </TouchableOpacity>
         ) : (
-        <TouchableOpacity
-            style={[styles.installBtn, installing && styles.installBtnDisabled]}
+          <TouchableOpacity
+            style={[styles.installBtn, installing && styles.actionDisabled]}
             onPress={handleInstall}
             disabled={installing}
-        >
-            {installing ? (
-            <ActivityIndicator color="#fff" />
-            ) : (
-            <Text style={styles.installBtnText}>📦 Installer</Text>
-            )}
-        </TouchableOpacity>
-      )}
+          >
+            {installing
+              ? <ActivityIndicator color={colors.bg} size="small" />
+              : <Text style={styles.installBtnText}>📦  Installer</Text>}
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    padding: spacing.lg,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.bg,
-  },
+  container: { flex: 1, backgroundColor: colors.bg },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, gap: spacing.md },
+  loadingText: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm },
+  scroll: { padding: spacing.lg },
+
+  // Header
   header: {
-    marginBottom: spacing.md,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    marginBottom: spacing.lg,
   },
-  name: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
+  modIcon: {
+    width: 56, height: 56, borderRadius: radius.md,
+    backgroundColor: colors.accentDim,
+    borderWidth: 1, borderColor: colors.borderAccent,
+    alignItems: 'center', justifyContent: 'center',
   },
-  author: {
-    fontSize: 13,
-    color: colors.textSecondary,
+  modIconText: { fontSize: 26, fontWeight: '800', color: colors.accent },
+  headerText: { flex: 1 },
+  name: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, marginBottom: 2 },
+  author: { fontSize: 12, color: colors.textSecondary },
+
+  // Compat banner
+  compatBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    borderWidth: 1, borderRadius: radius.sm,
+    padding: spacing.md, marginBottom: spacing.lg,
+  },
+  compatOk: {
+    backgroundColor: 'rgba(76,175,135,0.08)',
+    borderColor: 'rgba(76,175,135,0.35)',
+  },
+  compatWarn: {
+    backgroundColor: 'rgba(255,152,0,0.08)',
+    borderColor: 'rgba(255,152,0,0.35)',
+  },
+  compatIcon: {
+    width: 28, height: 28, borderRadius: 14,
+    textAlign: 'center', lineHeight: 28,
+    fontWeight: '800', fontSize: 14,
+    color: colors.bg,
+    backgroundColor: colors.green,
+    overflow: 'hidden',
+  },
+  compatTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
+  compatSub:   { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+
+  // Section
+  section: { marginBottom: spacing.lg },
+  sectionTitle: {
+    fontSize: 10, fontWeight: '800', letterSpacing: 1.5,
+    color: colors.textSecondary, textTransform: 'uppercase',
     marginBottom: spacing.sm,
   },
-  compatBannerSupported: {
-    backgroundColor: 'rgba(76,175,135,0.15)',
-    borderWidth: 1,
-    borderColor: colors.green,
-    borderRadius: radius.sm,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-    alignItems: 'center',
-  },
-  compatTextSupported: {
-    color: colors.green,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  compatBannerUnsupported: {
-    backgroundColor: 'rgba(255,152,0,0.1)',
-    borderWidth: 1,
-    borderColor: colors.orange, // Assure‑toi d’avoir cette couleur dans theme.js, sinon remplace par '#ff9800'
-    borderRadius: radius.sm,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-    alignItems: 'center',
-  },
-  compatTextUnsupported: {
-    color: '#ff9800',
-    fontWeight: '700',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  versionsList: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    textAlign: 'center',
-  },
   description: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-    marginBottom: spacing.lg,
+    fontSize: 14, color: colors.textSecondary, lineHeight: 22,
   },
+
+  // Link
   linkBtn: {
     alignSelf: 'flex-start',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.bgInput,
-    borderRadius: radius.sm,
+    paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
+    backgroundColor: colors.bgCard,
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
+  },
+  linkBtnText: { color: colors.accentLight, fontWeight: '600', fontSize: 13 },
+
+  // Actions
+  actions: {
+    padding: spacing.md, gap: spacing.sm,
+    borderTopWidth: 1, borderTopColor: colors.border,
+    backgroundColor: colors.bgCard,
+  },
+  toggleBtn: {
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.sm, alignItems: 'center',
     borderWidth: 1,
+  },
+  toggleBtnOn: {
+    borderColor: colors.borderAccent,
+    backgroundColor: colors.accentDim,
+  },
+  toggleBtnOff: {
     borderColor: colors.border,
-    marginBottom: spacing.lg,
+    backgroundColor: colors.bgInput,
   },
-  linkBtnText: {
-    color: colors.accentLight,
-    fontWeight: '600',
-  },
+  toggleBtnText: { color: colors.accent, fontWeight: '700', fontSize: 14 },
+
   installBtn: {
     backgroundColor: colors.accent,
-    borderRadius: radius.sm,
-    paddingVertical: spacing.md,
+    borderRadius: radius.sm, paddingVertical: spacing.md,
     alignItems: 'center',
-    marginTop: 'auto',
-    marginBottom: spacing.xl,
   },
-  installBtnDisabled: {
-    opacity: 0.4,
-  },
-  installBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  installBtnText: { color: colors.bg, fontSize: 15, fontWeight: '800' },
+
   deleteBtn: {
-  backgroundColor: 'rgba(224,92,92,0.15)',
-  borderRadius: radius.sm,
-  paddingVertical: spacing.md,
-  alignItems: 'center',
-  marginTop: 'auto',
-  marginBottom: spacing.xl,
-  borderWidth: 1,
-  borderColor: colors.red,
+    borderWidth: 1, borderColor: 'rgba(224,92,92,0.4)',
+    backgroundColor: 'rgba(224,92,92,0.08)',
+    borderRadius: radius.sm, paddingVertical: spacing.md,
+    alignItems: 'center',
   },
-  deleteBtnDisabled: {
-  opacity: 0.4,
-  },
-  deleteBtnText: {
-  color: colors.red,
-  fontSize: 16,
-  fontWeight: '700',
-  },
-  toggleBtnDetail: {
-  backgroundColor: colors.bgInput,
-  borderRadius: radius.sm,
-  paddingVertical: spacing.sm,
-  alignItems: 'center',
-  marginBottom: spacing.md,
-  borderWidth: 1,
-  borderColor: colors.border,
-  },
-  toggleBtnDetailText: {
-  color: colors.accentLight,
-  fontWeight: '600',
-  },
+  deleteBtnText: { color: colors.red, fontSize: 15, fontWeight: '700' },
+
+  actionDisabled: { opacity: 0.4 },
 });
