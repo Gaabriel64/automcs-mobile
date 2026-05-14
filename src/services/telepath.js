@@ -107,6 +107,22 @@ class TelepathService {
     await AsyncStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
   }
 
+  // Test rapide avec timeout court
+  async _quickCheck(host, port) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2000); // 2 secondes max
+    try {
+      const response = await fetch(`http://${host}:${port}/telepath/check_status`, {
+        signal: controller.signal,
+      });
+      return response.ok;
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   // Supprime un profil (si besoin)
   async removeProfile(host, port) {
     const key = `${host}:${port}`;
@@ -120,34 +136,42 @@ class TelepathService {
     const profiles = await this.getProfiles();
     if (profiles.length === 0) return false;
     
-    for (const profile of profiles) {
-      // Injecte les paramètres du profil dans le service
-      this.host = profile.host;
-      this.port = profile.port;
-      this.token = profile.token;
-      this.sessionId = profile.sessionId;
-      this.clientHost = profile.clientHost || 'mobile-app';
-      this.clientUser = profile.clientUser || 'mobile-user';
-      
-      try {
-        const status = await this.checkStatus(); // GET /telepath/check_status
-        if (status) {
-          // Si le token est encore valide, on appelle login pour en obtenir un nouveau si besoin
-          const data = await this.login();
-          if (data?.['access-token']) {
-            await this.saveSession();
-            return true; // reconnexion réussie
-          }
-        }
-      } catch {
-        // échec silencieux, on passe au profil suivant
-        continue;
+    // Lancer tous les tests en parallèle
+    const results = await Promise.all(
+      profiles.map(async (profile) => {
+        const reachable = await this._quickCheck(profile.host, profile.port);
+        return { profile, reachable };
+      })
+    );
+    
+    // Chercher le premier profil joignable
+    const found = results.find(r => r.reachable);
+    if (!found) return false;
+    
+    // Utiliser ce profil
+    const { profile } = found;
+    this.host = profile.host;
+    this.port = profile.port;
+    this.token = profile.token;
+    this.sessionId = profile.sessionId;
+    this.clientHost = profile.clientHost || 'mobile-app';
+    this.clientUser = profile.clientUser || 'mobile-user';
+    
+    // Tenter le login (garde le timeout normal ici, car on sait que le serveur répond)
+    try {
+      const data = await this.login();
+      if (data?.['access-token']) {
+        await this.saveSession();
+        return true;
       }
+    } catch {
+      // Si le token est expiré, on continue avec le profil suivant
     }
-    return false; // aucun profil n'a fonctionné
+    
+    return false;
   }
 
-  async _fetch(endpoint, options = {}, timeoutMs = 8000) {
+  async _fetch(endpoint, options = {}, timeoutMs = 5000) {
     const url = `${this.baseUrl}/${endpoint}`;
     const headers = { 'Content-Type': 'application/json' };
     if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
