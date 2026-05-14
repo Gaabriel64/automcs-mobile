@@ -460,19 +460,59 @@ export default function ServerDetailScreen({ route, navigation }) {
   const [serverType, setServerType] = useState(null);
   const [openError, setOpenError]   = useState(null);
   const [modsRefreshKey, setModsRefreshKey] = useState(0);
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupDone, setBackupDone] = useState(false);
 
   const runData = useRunData(opened);
+
+
+  const handleBackup = async () => {
+    Alert.alert('Sauvegarder', `Créer une sauvegarde de "${serverName}" ?`, [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Sauvegarder', onPress: async () => {
+        setBackupLoading(true);
+        setBackupDone(false);
+        try {
+          await telepathService._post('BackupManager/save', {});
+          setBackupDone(true);
+          setTimeout(() => setBackupDone(false), 3000);
+        } catch (e) {
+          Alert.alert('Erreur', `Échec de la sauvegarde : ${e.message}`);
+        } finally {
+          setBackupLoading(false);
+        }
+      }}
+    ]);
+  };
 
   useEffect(() => {
     navigation.setOptions({
       title: serverName,
       headerRight: () => (
-        <TouchableOpacity onPress={() => navigation.navigate('ServerSettings', { serverName })} style={{ padding: 8 }}>
-          <Text style={{ fontSize: 20, color: colors.textSecondary }}>⚙️</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => handleBackup()}
+            style={{ padding: 8 }}
+            disabled={backupLoading}
+          >
+            {backupLoading ? (
+              <ActivityIndicator color={colors.accent} size="small" />
+            ) : backupDone ? (
+              <Text style={{ fontSize: 20 }}>✅</Text>
+            ) : (
+              <Text style={{ fontSize: 20 }}>💾</Text>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ServerSettings', { serverName })}
+            style={{ padding: 8 }}
+          >
+            <Text style={{ fontSize: 24 }}>⚙️</Text>
+          </TouchableOpacity>
+        </View>
       ),
     });
-  }, [serverName, navigation]);
+  }, [serverName, navigation, backupLoading, backupDone]);
 
   useEffect(() => {
     (async () => {

@@ -6,6 +6,7 @@ import {
 import { telepathService } from '../services/telepath';
 import { colors, spacing, radius, fonts } from '../theme';
 import Slider from '@react-native-community/slider';
+import { useFocusEffect } from '@react-navigation/native';
 
 // ── RAM Slider ────────────────────────────────────────────────────────────────
 function RamSlider({ value, onSave }) {
@@ -195,7 +196,7 @@ const DIFFICULTIES = [
 ];
 
 // ── Main screen ───────────────────────────────────────────────────────────────
-export default function ServerSettingsScreen({ route }) {
+export default function ServerSettingsScreen({ route, navigation }) {
   const { serverName } = route.params;
   const [props, setProps]   = useState(null);
   const [cfg, setCfg]       = useState(null);
@@ -316,6 +317,31 @@ export default function ServerSettingsScreen({ route }) {
       <RamSlider value={g?.allocatedmemory ?? g?.allocatedMemory ?? ''} onSave={saveRam} />
       <SwitchRow label="Mise à jour auto" value={isNotFalse(g?.updateauto ?? g?.updateAuto)} onSave={saveAutoUpdate} />
       <InputRow label="Flags Java" value={g?.customflags ?? g?.customFlags ?? ''} onSave={saveFlags} placeholder="-Xmx2G -Xms2G" />
+      <InputRow
+        label="Sauvegardes max"
+        value={cfg?.bkup?.bkupMax ?? cfg?.general?.maxbackups ?? '5'}
+        onSave={async (v) => {
+          const newBkup = { ...(cfg?.bkup || {}), bkupMax: v };
+          const newCfg = { ...cfg, bkup: newBkup };
+          setCfg(newCfg);
+          try {
+            await telepathService._post('ServerObject/write_config', {
+              remote_data: { config_file: newCfg, server_properties: props },
+            });
+          } catch (e) {
+            Alert.alert('Erreur', e.message);
+            setCfg(cfg);
+          }
+        }}
+        keyboardType="number-pad"
+        placeholder="5"
+      />
+      <TouchableOpacity
+        style={styles.restoreLink}
+        onPress={() => navigation.navigate('BackupList', { serverName })}
+      >
+        <Text style={styles.restoreLinkText}>📂 Gérer les sauvegardes</Text>
+      </TouchableOpacity>
 
       <SectionHeader title="Avancé" />
       <InputRow label="Adresse IP" value={props?.['server-ip'] ?? ''} onSave={v => saveProp('server-ip', v)} placeholder="toutes les interfaces" />
@@ -418,4 +444,7 @@ const styles = StyleSheet.create({
   savedMark: { color: colors.green, fontSize: 12, fontWeight: '700' },
   sliderTick: { color: colors.textMuted, fontSize: 10 },
   sliderValue: { color: colors.textPrimary, fontWeight: '700', minWidth: 48, textAlign: 'center', fontSize: 13 },
+
+  restoreLink: { paddingVertical: spacing.sm, marginTop: spacing.sm },
+  restoreLinkText: { color: colors.accentLight, fontWeight: '600', fontSize: 13 },
 });

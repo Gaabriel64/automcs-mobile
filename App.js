@@ -11,6 +11,7 @@ import ServersScreen from './src/screens/ServersScreen';
 import ServerDetailScreen from './src/screens/ServerDetailScreen';
 import ServerSettingsScreen from './src/screens/ServerSettingsScreen';
 import ModDetailScreen from './src/screens/ModDetailScreen';
+import BackupListScreen from './src/screens/BackupListScreen';
 
 import { colors } from './src/theme';
 
@@ -44,6 +45,7 @@ export default function App() {
         <Stack.Screen name="ServerDetail" component={ServerDetailScreen} options={{ title: 'Serveur' }} />
         <Stack.Screen name="ServerSettings" component={ServerSettingsScreen} options={{ title: 'Paramètres' }} />
         <Stack.Screen name="ModDetail" component={ModDetailScreen} options={{ title: 'Détails du mod' }} />
+        <Stack.Screen name="BackupList" component={BackupListScreen} options={{ title: 'Sauvegardes' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
