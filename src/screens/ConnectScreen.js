@@ -289,7 +289,7 @@ export default function ConnectScreen({ navigation }) {
               value={pairCode}
               onChangeText={(text) => {
                 const clean = text.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
-                const formatted = clean.length > 3 ? clean.slice(0, 3) + '-' + clean.slice(3) : clean;
+                const formatted = clean.length >= 3 ? clean.slice(0, 3) + '-' + clean.slice(3) : clean;
                 setPairCode(formatted);
               }}
               keyboardType="default"
@@ -392,7 +392,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm, borderWidth: 1, borderColor: colors.borderAccent,
     padding: spacing.md,
     color: colors.accent,
-    fontSize: 32, textAlign: 'center', letterSpacing: 8, fontWeight: '800',
+    fontSize: 32, textAlign: 'center', letterSpacing: 3, fontWeight: '800',
     fontFamily: fonts.mono,
   },
 
