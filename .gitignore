@@ -7,6 +7,8 @@ node_modules/
 .expo/
 dist/
 web-build/
+/android
+/ios
 
 # Native
 *.orig.*
@@ -29,10 +31,26 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
+.env
+.env.*
 
 # typescript
 *.tsbuildinfo
 
+# IDE
+.idea/
+.vscode/
+*.swp
 
-/%ProgramData%/
+# Logs
+*.log
+
+# Coverage
+coverage/
+.nyc_output/
+
+# EAS
+.easignore
+
+# Cache
+.cache/
