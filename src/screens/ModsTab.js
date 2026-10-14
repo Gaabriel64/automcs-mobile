@@ -219,7 +219,7 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
       { text: 'Annuler', style: 'cancel' },
       { text: 'Supprimer', style: 'destructive', onPress: async () => {
         try {
-          await telepathService._post('AddonManager/delete_addon', { addon: item.id });
+          await telepathService.deleteAddon(item);
           loadInstalled();
         } catch (e) {
           Alert.alert('Erreur', e.message);
@@ -231,7 +231,7 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
   const handleToggle = async (item) => {
     const isEnabled = item.enabled !== false;
     try {
-      await telepathService._post('AddonManager/addon_state', { addon: item.id, enabled: !isEnabled });
+      await telepathService.setAddonState(item, !isEnabled);
       loadInstalled();
     } catch (e) {
       Alert.alert('Erreur', e.message);

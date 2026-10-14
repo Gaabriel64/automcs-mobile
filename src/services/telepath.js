@@ -203,6 +203,39 @@ class TelepathService {
   // POST shorthand
   _post(endpoint, body) { return this._fetch(endpoint, { method: 'POST', body: JSON.stringify(body) }); }
 
+  // ── Addons : compatibilité avec auto-mcs officiel (sans patch serveur) ─────
+  // Côté serveur, delete_addon / addon_state attendent un objet avec `.path`.
+  // Le serveur sait reconstruire un objet depuis un dict marqué `__reconstruct__`
+  // (c'est ce que fait le client desktop). On retrouve donc l'addon installé
+  // dans la liste FRAÎCHE (le `path` change quand on active/désactive un mod) et
+  // on le renvoie avec les marqueurs attendus.
+  async _resolveInstalledAddon(ref) {
+    const id = String(ref?.id ?? (typeof ref === 'string' ? ref : '')).trim().toLowerCase();
+    const name = String(ref?.name ?? '').trim().toLowerCase();
+
+    const list = await this._get('AddonManager/return_single_list');
+    const found = (Array.isArray(list) ? list : []).find(a =>
+      (id && a.id?.toLowerCase() === id) || (name && a.name?.toLowerCase() === name)
+    );
+    if (!found) throw new Error('Mod introuvable parmi les mods installés du serveur');
+
+    // Sans `path` (liste inattendue) : repli sur l'id seul, ce qui fonctionne
+    // avec les serveurs qui acceptent un nom/id (ex. le fork de Gaabriel64).
+    if (!found.path) return found.id;
+
+    return { ...found, __reconstruct__: 'RemoteAddonFileObject', _telepath_data: found };
+  }
+
+  async deleteAddon(ref) {
+    const addon = await this._resolveInstalledAddon(ref);
+    return this._post('AddonManager/delete_addon', { addon });
+  }
+
+  async setAddonState(ref, enabled) {
+    const addon = await this._resolveInstalledAddon(ref);
+    return this._post('AddonManager/addon_state', { addon, enabled });
+  }
+
   async _buildEncryptedToken() {
     const pem = await this._get('telepath/get_public_key');
     const uniqueId = await getUniqueId();
