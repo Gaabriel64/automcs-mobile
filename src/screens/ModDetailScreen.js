@@ -62,7 +62,7 @@ export default function ModDetailScreen({ route, navigation }) {
       { text: 'Supprimer', style: 'destructive', onPress: async () => {
         setInstalling(true);
         try {
-          await telepathService._post('AddonManager/delete_addon', { addon: modItem.id });
+          await telepathService.deleteAddon(modItem);
           navigation.goBack();
         } catch (e) {
           Alert.alert('Erreur', e.message);
@@ -76,7 +76,7 @@ export default function ModDetailScreen({ route, navigation }) {
   const handleToggle = async () => {
     setInstalling(true);
     try {
-      await telepathService._post('AddonManager/addon_state', { addon: modItem.id, enabled: !enabledState });
+      await telepathService.setAddonState(modItem, !enabledState);
       setEnabledState(!enabledState);
     } catch (e) {
       Alert.alert('Erreur', e.message);
