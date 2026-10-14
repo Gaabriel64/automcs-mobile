@@ -152,7 +152,9 @@ export default function ConnectScreen({ navigation }) {
   useEffect(() => {
     (async () => {
       const success = await telepathService.tryReconnect();
-      if (success) navigation.replace('Servers');
+      if (success) { navigation.replace('Servers'); return; }
+      const err = telepathService.lastReconnectError;
+      if (err?.code === 'TELEPATH_VERSION_MISMATCH') setError(err.message);
     })();
   }, []);
 

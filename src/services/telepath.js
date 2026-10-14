@@ -11,7 +11,14 @@ const STORAGE_KEYS = {
   PROFILES: 'telepath_profiles',  // stockera un tableau de profils
 };
 
-const TELEPATH_VERSION = '1.2.2';
+// Versions de l'API Telepath que l'app sait parler (la première est la préférée).
+// auto-mcs exige une égalité stricte avec sa propre version et ne négocie rien :
+// 1.3.4 = branche ui-fixes/dev (prochaine version), 1.3.3 = dev avant le 5 oct. 2026,
+// 1.2.2 = version actuelle de main. Une version n'est ajoutée ici qu'après avoir lu
+// ce qui a changé dans l'API (1.3.3 → 1.3.4 : addon_state/script_state gagnent
+// un paramètre optionnel `all`, rétrocompatible).
+const SUPPORTED_TELEPATH_VERSIONS = ['1.3.4', '1.3.3', '1.2.2'];
+const TELEPATH_VERSION = SUPPORTED_TELEPATH_VERSIONS[0];
 
 async function getUniqueId() {
   let id = await AsyncStorage.getItem('telepath_unique_id');
@@ -47,8 +54,13 @@ class TelepathService {
     return `http://${this.host}:${this.port}`;
   }
 
+  // Version Telepath à annoncer à ce serveur (celle qu'il nous a demandée, sinon la préférée)
+  _apiVersion() {
+    return this._apiVersions?.[`${this.host}:${this.port}`] || TELEPATH_VERSION;
+  }
+
   _hostPayload() {
-    return { host: this.clientHost, user: this.clientUser, session_id: this.sessionId || '', 'telepath-version': TELEPATH_VERSION, };
+    return { host: this.clientHost, user: this.clientUser, session_id: this.sessionId || '', 'telepath-version': this._apiVersion(), };
   }
 
   async loadSaved() {
@@ -133,6 +145,7 @@ class TelepathService {
 
   // Tente de se connecter sur chaque profil connu ; retourne true si un profil fonctionne
   async tryReconnect() {
+    this.lastReconnectError = null;
     const profiles = await this.getProfiles();
     if (profiles.length === 0) return false;
     
@@ -164,14 +177,16 @@ class TelepathService {
         await this.saveSession();
         return true;
       }
-    } catch {
-      // Si le token est expiré, on continue avec le profil suivant
+    } catch (e) {
+      // Mémorisé pour que l'UI puisse expliquer l'échec (ex. version Telepath incompatible)
+      this.lastReconnectError = e;
     }
     
     return false;
   }
 
   async _fetch(endpoint, options = {}, timeoutMs = 5000) {
+    const { _versionRetried, ...fetchOptions } = options;
     const url = `${this.baseUrl}/${endpoint}`;
     const headers = { 'Content-Type': 'application/json' };
     if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
@@ -180,7 +195,7 @@ class TelepathService {
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     let response;
     try {
-      response = await fetch(url, { ...options, headers: { ...headers, ...options.headers }, signal: controller.signal });
+      response = await fetch(url, { ...fetchOptions, headers: { ...headers, ...fetchOptions.headers }, signal: controller.signal });
     } catch (e) {
       if (e.name === 'AbortError') throw new Error(`Timeout — impossible de joindre ${this.host}:${this.port}`);
       throw new Error(`Réseau inaccessible : ${e.message}`);
@@ -191,6 +206,34 @@ class TelepathService {
     if (!response.ok) {
       let detail = `HTTP ${response.status}`;
       try { const j = await response.json(); detail = j.detail || detail; } catch {}
+
+      // auto-mcs refuse login et pairing si les versions Telepath diffèrent (égalité stricte)
+      // et indique la sienne : « API versions do not match. Server - v1.2.2 » (login) ou
+      // « API versions do not match - server is v1.3.3 » (pairing).
+      const mismatch = /versions do not match.*?v?(\d+(?:\.\d+)+)/i.exec(String(detail));
+      if (mismatch) {
+        const serverVersion = mismatch[1];
+
+        // Version qu'on sait parler : on la retient pour ce serveur et on rejoue la requête une fois
+        if (SUPPORTED_TELEPATH_VERSIONS.includes(serverVersion) && !_versionRetried && fetchOptions.body) {
+          let body = null;
+          try { body = JSON.parse(fetchOptions.body); } catch {}
+          if (body?.host?.['telepath-version']) {
+            this._apiVersions = { ...(this._apiVersions || {}), [`${this.host}:${this.port}`]: serverVersion };
+            body.host['telepath-version'] = serverVersion;
+            return this._fetch(endpoint, { ...fetchOptions, body: JSON.stringify(body), _versionRetried: true }, timeoutMs);
+          }
+        }
+
+        const err = new Error(
+          `Version Telepath incompatible : le serveur est en v${serverVersion}, ` +
+          `cette app gère v${SUPPORTED_TELEPATH_VERSIONS.join(' et v')}. Mets à jour l'app (ou auto-mcs).`
+        );
+        err.code = 'TELEPATH_VERSION_MISMATCH';
+        err.serverVersion = serverVersion;
+        err.supportedVersions = SUPPORTED_TELEPATH_VERSIONS;
+        throw err;
+      }
       throw new Error(detail);
     }
 

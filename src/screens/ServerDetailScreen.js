@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, memo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   TextInput, Platform, Alert, Keyboard, ActivityIndicator, KeyboardAvoidingView
@@ -7,38 +7,15 @@ import { telepathService } from '../services/telepath';
 import { colors, spacing, radius, fonts } from '../theme';
 import ModsTab from './ModsTab';
 import { useFocusEffect } from '@react-navigation/native';
+import {
+  parseLogEntry, makeLocalLine, entrySignature, findNewStart, brighten, toCss,
+} from '../utils/consoleLog';
 
 const DEBUG = true;
 function log(tag, msg, data) {
   if (!DEBUG) return;
   console.log(`[${tag}]`, msg, data !== undefined ? JSON.stringify(data) : '');
 }
-
-function extractLogText(entry) {
-  if (!entry) return null;
-  if (typeof entry === 'string') return entry;
-  const t = entry?.text;
-  if (Array.isArray(t) && t.length >= 3) return `[${t[1]}] ${t[2]}`;
-  if (typeof t === 'string') return t;
-  return JSON.stringify(entry);
-}
-
-function logTypeFromText(text) {
-  if (!text) return 'default';
-  const t = text.toLowerCase();
-  if (/error|warn/.test(t)) return 'error';
-  if (/joined|logged in/.test(t)) return 'join';
-  if (/left|disconnect/.test(t)) return 'leave';
-  return 'default';
-}
-
-const logColor = (type) => ({
-  error: colors.red,
-  join:  colors.green,
-  leave: colors.yellow,
-  info:  '#4b6580',
-  default: '#8faabf',
-})[type] || colors.consoleText;
 
 // ── run_data polling ──────────────────────────────────────────────────────────
 function useRunData(opened) {
@@ -85,29 +62,60 @@ const addrStyles = StyleSheet.create({
   },
 });
 
+// Une ligne de console, comme sur le desktop : pastilles heure/type + message
+// coloré par type (les codes §couleur du message gardent leur propre couleur).
+const LogLine = memo(function LogLine({ line }) {
+  const base = toCss(line.color);
+  const dark = toCss(brighten(line.color, -0.65));
+  return (
+    <View style={consoleStyles.logRow}>
+      {line.time ? (
+        <Text style={[consoleStyles.pill, { backgroundColor: toCss(brighten(line.color, -0.2)), color: dark }]}>
+          {line.time}
+        </Text>
+      ) : null}
+      <Text style={[consoleStyles.pill, consoleStyles.typePill, { backgroundColor: base, color: dark }]}>
+        {line.type}
+      </Text>
+      <Text style={[consoleStyles.line, consoleStyles.msg, { color: base }]}>
+        {line.segments.map((seg, i) => (
+          <Text key={i} style={seg.color ? { color: seg.color } : null}>{seg.text}</Text>
+        ))}
+      </Text>
+    </View>
+  );
+});
+
 // ── Console tab ───────────────────────────────────────────────────────────────
 function ConsoleTab({ runData }) {
   const [cmd, setCmd] = useState('');
   const [sending, setSending] = useState(false);
-  const [localLogs, setLocalLogs] = useState([{ id: 0, text: '// Console ready', type: 'info' }]);
+  const [localLogs, setLocalLogs] = useState([{ id: 0, ...makeLocalLine('INFO', '// Console ready') }]);
   const scrollRef = useRef();
   const logIdRef  = useRef(1);
-  const seenRef   = useRef(new Set());
+  const prevSigsRef = useRef([]);
 
+  // Le serveur garde 2000 lignes max et supprime les plus anciennes : on repère
+  // les nouvelles lignes par recoupement avec la fin de ce qui est déjà affiché.
   useEffect(() => {
-    if (!runData?.log) return;
-    const newEntries = [];
-    runData.log.forEach((entry, i) => {
-      const text = extractLogText(entry);
-      if (!text) return;
-      const key = `${i}-${text}`;
-      if (!seenRef.current.has(key)) {
-        seenRef.current.add(key);
-        logIdRef.current += 1;
-        newEntries.push({ id: logIdRef.current, text, type: logTypeFromText(text) });
-      }
+    if (!Array.isArray(runData?.log)) return;
+    const cur = runData.log;
+    const curSigs = cur.map(entrySignature);
+    const start = findNewStart(prevSigsRef.current, curSigs);
+    prevSigsRef.current = curSigs;
+
+    const toLines = (entries) => entries.map(e => {
+      logIdRef.current += 1;
+      return { id: logIdRef.current, ...parseLogEntry(e) };
     });
-    if (newEntries.length > 0) setLocalLogs(prev => [...prev, ...newEntries].slice(-300));
+
+    if (start === -1) {
+      // Journal remis à zéro (serveur relancé…) : on repart de ce que le serveur envoie
+      setLocalLogs(toLines(cur).slice(-300));
+    } else if (start < cur.length) {
+      const fresh = toLines(cur.slice(start));
+      setLocalLogs(prev => [...prev, ...fresh].slice(-300));
+    }
   }, [runData?.log]);
 
   const sendCommand = async () => {
@@ -115,12 +123,12 @@ function ConsoleTab({ runData }) {
     const command = cmd.trim();
     setCmd(''); setSending(true);
     logIdRef.current += 1;
-    setLocalLogs(prev => [...prev, { id: logIdRef.current, text: `> ${command}`, type: 'info' }]);
+    setLocalLogs(prev => [...prev, { id: logIdRef.current, ...makeLocalLine('EXEC', `> ${command}`) }]);
     try {
       await telepathService.sendCommand(command);
     } catch (e) {
       logIdRef.current += 1;
-      setLocalLogs(prev => [...prev, { id: logIdRef.current, text: `[error] ${e.message}`, type: 'error' }]);
+      setLocalLogs(prev => [...prev, { id: logIdRef.current, ...makeLocalLine('ERROR', e.message) }]);
     } finally {
       setSending(false);
     }
@@ -144,11 +152,7 @@ function ConsoleTab({ runData }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
-        {localLogs.map(l => (
-          <Text key={l.id} style={[consoleStyles.line, { color: logColor(l.type) }]}>
-            {l.text}
-          </Text>
-        ))}
+        {localLogs.map(l => <LogLine key={l.id} line={l} />)}
       </ScrollView>
 
       {/* Command input */}
@@ -190,6 +194,13 @@ const consoleStyles = StyleSheet.create({
     fontFamily: fonts.mono,
     fontSize: 11, lineHeight: 18,
   },
+  logRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 4, marginBottom: 2 },
+  pill: {
+    fontFamily: fonts.mono, fontSize: 9, lineHeight: 14, fontWeight: '700',
+    paddingHorizontal: 4, borderRadius: 3, overflow: 'hidden', marginTop: 2,
+  },
+  typePill: { minWidth: 46, textAlign: 'center' },
+  msg: { flex: 1 },
   inputRow: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#0c1520',
