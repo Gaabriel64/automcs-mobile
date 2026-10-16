@@ -366,6 +366,12 @@ class TelepathService {
     }, 120000);
   }
 
+  // --- Création de serveur (voir services/createServer.js) ---
+  async checkFreeSpace() { return this._get('main/check_free_space'); }
+  async createCall(endpoint, body, timeoutMs) {
+    return this._fetch(endpoint, { method: 'POST', body: JSON.stringify(body ?? {}) }, timeoutMs);
+  }
+
   // Geyser/Floodgate/ViaVersion : télécharge ou retire les addons sur le serveur
   async installGeyser(install) {
     return this._fetch('AddonManager/_install_geyser', {

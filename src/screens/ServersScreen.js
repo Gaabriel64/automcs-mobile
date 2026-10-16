@@ -304,12 +304,29 @@ export default function ServersScreen({ navigation }) {
           }
         />
       )}
+
+      {!loading && !error ? (
+        <TouchableOpacity
+          style={styles.fab}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('CreateServer', { existingNames: servers.map(s => s?.name).filter(Boolean) })}
+        >
+          <Text style={styles.fabText}>＋</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
+  fab: {
+    position: 'absolute', right: spacing.lg, bottom: spacing.xl,
+    width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accent, elevation: 6,
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
+  },
+  fabText: { color: colors.bg, fontSize: 28, fontWeight: '700', marginTop: -2 },
   list: { padding: spacing.md, paddingTop: spacing.sm },
   retryBtn: {
     marginTop: spacing.md,
