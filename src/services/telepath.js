@@ -345,6 +345,33 @@ class TelepathService {
   async getPerformanceStats() { return this._post('ServerObject/performance_stats', { interval: 0.5 }); }
   // _sync_attr exposes run_data (logs + performance + player-list) via POST
   async getRunData() { return this._post('ServerObject/_sync_attr', { name: 'run_data' }); }
+
+  // --- Gestion du serveur ouvert (appeler openServer(name) avant) ---
+  // Les opérations longues (installation, suppression) ont un délai étendu : le serveur
+  // répond seulement une fois terminé.
+  async getServerAttr(name) { return this._post('ServerObject/_sync_attr', { name }); }
+  async reloadConfig() { return this._post('ServerObject/reload_config', {}); }
+  async renameServer(newName) { return this._post('ServerObject/rename', { new_name: newName }); }
+  async deleteServer() { return this._fetch('ServerObject/delete', {}, 180000); }
+  async setAutostart(enabled) { return this._post('ServerObject/enable_autostart', { enabled }); }
+
+  // playit.gg : proxy_installed = agent installé ET compte lié
+  async proxyInstalled() { return this._get('ServerObject/proxy_installed'); }
+  async getPlayitUrl() { return this._get('ServerObject/get_playit_url'); }
+  async setProxy(enabled) { return this._post('ServerObject/enable_proxy', { enabled }); }
+  async unlinkPlayit() { return this._get('ServerObject/unlink_playit_account'); }
+  async linkPlayit(setupCode) {
+    return this._fetch('ServerObject/link_playit_account', {
+      method: 'POST', body: JSON.stringify({ setup_code: setupCode }),
+    }, 120000);
+  }
+
+  // Geyser/Floodgate/ViaVersion : télécharge ou retire les addons sur le serveur
+  async installGeyser(install) {
+    return this._fetch('AddonManager/_install_geyser', {
+      method: 'POST', body: JSON.stringify({ install }),
+    }, 300000);
+  }
 }
 
 export const telepathService = new TelepathService();

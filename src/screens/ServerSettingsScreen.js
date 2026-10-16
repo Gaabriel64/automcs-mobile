@@ -7,6 +7,7 @@ import { telepathService } from '../services/telepath';
 import { colors, spacing, radius, fonts } from '../theme';
 import Slider from '@react-native-community/slider';
 import { useFocusEffect } from '@react-navigation/native';
+import ServerManagement from '../components/ServerManagement';
 
 // ── RAM Slider ────────────────────────────────────────────────────────────────
 function RamSlider({ value, onSave }) {
@@ -219,6 +220,15 @@ export default function ServerSettingsScreen({ route, navigation }) {
     })();
   }, [serverName]);
 
+  // Relit la config du serveur (après une action qui la modifie côté serveur : playit,
+  // Geyser, démarrage auto…) pour ne pas la réécraser avec une copie périmée.
+  const reloadCfg = useCallback(async () => {
+    try {
+      const cf = await telepathService._post('ServerObject/_sync_attr', { name: 'config_file' });
+      if (cf) setCfg(cf);
+    } catch {}
+  }, []);
+
   const saveProp = useCallback(async (key, value) => {
     const newProps = { ...props, [key]: value };
     setProps(newProps);
@@ -354,6 +364,13 @@ export default function ServerSettingsScreen({ route, navigation }) {
       <SwitchRow label="Whitelist stricte" value={isBool(props?.['enforce-whitelist'])} onSave={v => saveProp('enforce-whitelist', v)} />
       <SwitchRow label="Profils sécurisés" value={isNotFalse(props?.['enforce-secure-profile'])} onSave={v => saveProp('enforce-secure-profile', v)} />
       <InputRow label="Pack de ressource" value={props?.['resource-pack'] ?? ''} onSave={v => saveProp('resource-pack', v)} placeholder="URL" />
+
+      <ServerManagement
+        serverName={serverName}
+        cfg={cfg}
+        onCfgChanged={reloadCfg}
+        navigation={navigation}
+      />
     </ScrollView>
   );
 }
