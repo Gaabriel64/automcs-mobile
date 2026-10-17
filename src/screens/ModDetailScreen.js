@@ -19,7 +19,7 @@ export default function ModDetailScreen({ route, navigation }) {
         const version = await telepathService._post('ServerObject/_sync_attr', { name: 'version' });
         setServerVersion(version?.trim());
       } catch (e) {
-        console.warn('Impossible de récupérer la version', e);
+        console.warn('Could not get the server version', e);
       } finally {
         setLoadingVersion(false);
       }
@@ -35,7 +35,7 @@ export default function ModDetailScreen({ route, navigation }) {
         });
         if (online?.url) setWebData(online);
       } catch (e) {
-        console.warn('Impossible de récupérer les infos en ligne', e);
+        console.warn('Could not fetch the online info', e);
       }
     })();
   }, [modItem]);
@@ -47,25 +47,25 @@ export default function ModDetailScreen({ route, navigation }) {
     setInstalling(true);
     try {
       await telepathService._post('AddonManager/download_addon', { addon: modItem.id });
-      Alert.alert('Succès', `${modItem.name} a bien été installé !`);
+      Alert.alert('Success', `${modItem.name} was installed!`);
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Erreur', `Impossible d'installer le mod : ${e.message}`);
+      Alert.alert('Error', `Could not install the mod: ${e.message}`);
     } finally {
       setInstalling(false);
     }
   };
 
   const handleDelete = () => {
-    Alert.alert('Supprimer', `Supprimer définitivement ${modItem.name} ?`, [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: async () => {
+    Alert.alert('Delete', `Permanently delete ${modItem.name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
         setInstalling(true);
         try {
           await telepathService.deleteAddon(modItem);
           navigation.goBack();
         } catch (e) {
-          Alert.alert('Erreur', e.message);
+          Alert.alert('Error', e.message);
         } finally {
           setInstalling(false);
         }
@@ -79,7 +79,7 @@ export default function ModDetailScreen({ route, navigation }) {
       await telepathService.setAddonState(modItem, !enabledState);
       setEnabledState(!enabledState);
     } catch (e) {
-      Alert.alert('Erreur', e.message);
+      Alert.alert('Error', e.message);
     } finally {
       setInstalling(false);
     }
@@ -89,7 +89,7 @@ export default function ModDetailScreen({ route, navigation }) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={styles.loadingText}>Vérification de compatibilité…</Text>
+        <Text style={styles.loadingText}>Checking compatibility…</Text>
       </View>
     );
   }
@@ -105,7 +105,7 @@ export default function ModDetailScreen({ route, navigation }) {
           </View>
           <View style={styles.headerText}>
             <Text style={styles.name}>{displayItem.name}</Text>
-            <Text style={styles.author}>par {displayItem.author || 'Inconnu'}</Text>
+            <Text style={styles.author}>by {displayItem.author || 'Unknown'}</Text>
           </View>
         </View>
 
@@ -123,9 +123,9 @@ export default function ModDetailScreen({ route, navigation }) {
             <View style={[styles.compatBanner, styles.compatWarn]}>
               <Text style={styles.compatIcon}>!</Text>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.compatTitle, { color: colors.orange }]}>COMPATIBILITÉ INCONNUE</Text>
+                <Text style={[styles.compatTitle, { color: colors.orange }]}>COMPATIBILITY UNKNOWN</Text>
                 <Text style={styles.compatSub} numberOfLines={2}>
-                  Versions supportées : {displayItem.versions.join(', ')}
+                  Supported versions: {displayItem.versions.join(', ')}
                 </Text>
               </View>
             </View>
@@ -135,7 +135,7 @@ export default function ModDetailScreen({ route, navigation }) {
         {/* ── Description ── */}
         {(displayItem.subtitle || displayItem.description) && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>À PROPOS</Text>
+            <Text style={styles.sectionTitle}>ABOUT</Text>
             <Text style={styles.description}>
               {displayItem.subtitle || displayItem.description}
             </Text>
@@ -145,7 +145,7 @@ export default function ModDetailScreen({ route, navigation }) {
         {/* ── Modrinth link ── */}
         {displayItem.url && (
           <TouchableOpacity style={styles.linkBtn} onPress={() => Linking.openURL(displayItem.url)}>
-            <Text style={styles.linkBtnText}>↗ Voir sur Modrinth</Text>
+            <Text style={styles.linkBtnText}>↗ View on Modrinth</Text>
           </TouchableOpacity>
         )}
 
@@ -162,7 +162,7 @@ export default function ModDetailScreen({ route, navigation }) {
           >
             {installing
               ? <ActivityIndicator color={colors.accent} size="small" />
-              : <Text style={styles.toggleBtnText}>{enabledState ? '⏸ Désactiver' : '▶ Activer'}</Text>}
+              : <Text style={styles.toggleBtnText}>{enabledState ? '⏸ Disable' : '▶ Enable'}</Text>}
           </TouchableOpacity>
         )}
 
@@ -174,7 +174,7 @@ export default function ModDetailScreen({ route, navigation }) {
           >
             {installing
               ? <ActivityIndicator color={colors.red} size="small" />
-              : <Text style={styles.deleteBtnText}>🗑  Supprimer</Text>}
+              : <Text style={styles.deleteBtnText}>🗑  Delete</Text>}
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -184,7 +184,7 @@ export default function ModDetailScreen({ route, navigation }) {
           >
             {installing
               ? <ActivityIndicator color={colors.bg} size="small" />
-              : <Text style={styles.installBtnText}>📦  Installer</Text>}
+              : <Text style={styles.installBtnText}>📦  Install</Text>}
           </TouchableOpacity>
         )}
       </View>

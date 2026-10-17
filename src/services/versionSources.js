@@ -1,13 +1,13 @@
-// Listes de versions Minecraft par type de serveur, interrogées depuis le téléphone
-// (comme le fait l'app desktop : foundry.find_latest_mc / validate_version).
+// Minecraft version lists per server type, fetched from the phone
+// (like the desktop app does: foundry.find_latest_mc / validate_version).
 //
-// Sources identiques à celles du desktop quand elles renvoient du JSON (Paper, Purpur,
-// Fabric, Quilt, NeoForge, Spigot/CraftBukkit). Le desktop lit des pages HTML pour
-// Vanilla (mcversions.net) et Forge ; ici on utilise leurs équivalents JSON officiels
-// (manifeste Mojang, promotions_slim.json de Forge), plus fiables à parser.
+// Same sources as the desktop when they return JSON (Paper, Purpur,
+// Fabric, Quilt, NeoForge, Spigot/CraftBukkit). The desktop reads HTML pages for
+// Vanilla (mcversions.net) and Forge; here their official JSON equivalents are used
+// (Mojang manifest, Forge promotions_slim.json), which are more reliable to parse.
 //
-// Une liste indisponible ne bloque jamais : l'écran de création garde un champ libre,
-// et le serveur valide lui-même le type + la version au téléchargement du jar.
+// An unavailable list never blocks anything: the create screen keeps a free text field,
+// and the server itself validates the type + version when downloading the jar.
 
 export const SERVER_TYPES = [
   { id: 'vanilla',     label: 'Vanilla' },
@@ -35,7 +35,7 @@ export const SOURCES = {
 
 const TIMEOUT_MS = 15000;
 
-// Compare deux versions « 1.20.4 » (ordre croissant) pour trier Forge
+// Compares two versions like "1.20.4" (ascending order), used to sort Forge
 export function compareVersions(a, b) {
   const pa = String(a).split('.').map(n => parseInt(n, 10) || 0);
   const pb = String(b).split('.').map(n => parseInt(n, 10) || 0);
@@ -48,8 +48,8 @@ export function compareVersions(a, b) {
 
 const unique = list => [...new Set(list)];
 
-// Version NeoForge « 21.1.5 » → version Minecraft « 1.21.1 » (même règle que le desktop ;
-// « 1.21.0 » et « 1.21 » sont équivalents côté serveur, on affiche « 1.21 »).
+// NeoForge version "21.1.5" -> Minecraft version "1.21.1" (same rule as the desktop;
+// "1.21.0" and "1.21" are equivalent for the server, "1.21" is displayed).
 export function neoforgeToMinecraft(version) {
   const v = String(version).split('.');
   let mc;
@@ -63,19 +63,19 @@ export function neoforgeToMinecraft(version) {
   return mc.replace(/\.0$/, '');
 }
 
-// Chaque parseur renvoie les versions Minecraft, de la plus récente à la plus ancienne
+// Each parser returns Minecraft versions, from newest to oldest
 export const parsers = {
-  // Manifeste Mojang : déjà trié du plus récent au plus ancien, on ne garde que les « release »
+  // Mojang manifest: already sorted newest to oldest, only keep "release" entries
   vanilla: data => (data?.versions || []).filter(v => v.type === 'release').map(v => v.id),
 
-  // Paper : { versions: { "1.21": ["1.21.4", ...], "1.20": [...] } } (groupes récents d'abord).
-  // Le desktop ignore les versions contenant « - » (pré-versions, release candidates).
+  // Paper: { versions: { "1.21": ["1.21.4", ...], "1.20": [...] } } (newest groups first).
+  // The desktop ignores versions containing "-" (pre-releases, release candidates).
   paper: data => Object.values(data?.versions || {}).flat().filter(v => !String(v).includes('-')),
 
   // Purpur : { versions: ["1.14.1", ..., "1.21.4"] } (ordre croissant)
   purpur: data => [...(data?.versions || [])].reverse(),
 
-  // Fabric / Quilt : [{ version, stable }, ...] (récent d'abord), seulement les stables
+  // Fabric / Quilt: [{ version, stable }, ...] (newest first), stable ones only
   fabric: data => (Array.isArray(data) ? data : []).filter(i => i.stable).map(i => i.version),
   quilt:  data => (Array.isArray(data) ? data : []).filter(i => i.stable).map(i => i.version),
 
@@ -94,7 +94,7 @@ export const parsers = {
       .filter(Boolean)
   ).sort((a, b) => compareVersions(b, a)),
 
-  // Spigot / CraftBukkit : seule la dernière version est exposée { version: "1.21.4" }
+  // Spigot / CraftBukkit: only the latest version is exposed { version: "1.21.4" }
   spigot:      data => (data?.version ? [String(data.version)] : []),
   craftbukkit: data => (data?.version ? [String(data.version)] : []),
 };
@@ -111,11 +111,11 @@ async function getJson(url, fetchImpl) {
   }
 }
 
-// Versions disponibles pour un type, du plus récent au plus ancien (liste vide si introuvable)
+// Available versions for a type, newest to oldest (empty list if not found)
 export async function fetchVersions(type, fetchImpl = fetch) {
   const url = SOURCES[type];
   const parse = parsers[type];
-  if (!url || !parse) throw new Error(`Type de serveur inconnu : ${type}`);
+  if (!url || !parse) throw new Error(`Unknown server type: ${type}`);
   const list = parse(await getJson(url, fetchImpl));
   return unique(list.map(String));
 }

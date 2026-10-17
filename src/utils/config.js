@@ -1,14 +1,14 @@
-// Config d'auto-mcs (auto-mcs.ini) reçue via Telepath.
+// auto-mcs config (auto-mcs.ini) received through Telepath.
 //
-// Le serveur lit le .ini en conservant la casse des clés (ConfigParser.optionxform = str) :
-// les vraies clés sont allocatedMemory, updateAuto, customFlags, enableProxy, enableGeyser,
-// autostart, bkupMax… Une clé « allocatedmemory » est donc une AUTRE clé, ignorée du serveur.
+// The server reads the .ini keeping the case of keys (ConfigParser.optionxform = str):
+// the real keys are allocatedMemory, updateAuto, customFlags, enableProxy, enableGeyser,
+// autostart, bkupMax... A key like "allocatedmemory" is therefore a DIFFERENT key that the server ignores.
 //
-// Et write_config remplace tout le fichier par ce que l'app envoie : il faut donc écrire à
-// partir de la config lue JUSTE AVANT, jamais d'une copie gardée en mémoire depuis le
-// chargement de l'écran (elle annulerait les changements faits depuis).
+// And write_config replaces the whole file with what the app sends: always write from the
+// config read JUST BEFORE, never from a copy kept in memory since the screen loaded
+// (it would undo the changes made since).
 
-// Clés en minuscules créées par erreur par d'anciennes versions de l'app
+// Lowercase keys created by mistake by older versions of the app
 const STRAY_KEYS = ['allocatedmemory', 'updateauto', 'customflags', 'enableproxy', 'enablegeyser'];
 
 export function cleanConfig(cfg) {

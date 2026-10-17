@@ -32,7 +32,7 @@ function RamSlider({ value, onSave }) {
 
   return (
     <View style={styles.row}>
-      <Text style={styles.rowLabel}>RAM dédiée</Text>
+      <Text style={styles.rowLabel}>Dedicated RAM</Text>
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         {saving && <ActivityIndicator size="small" color={colors.accent} />}
         {saved && !saving && <Text style={styles.savedMark}>✓</Text>}
@@ -49,10 +49,10 @@ function RamSlider({ value, onSave }) {
           />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={styles.sliderTick}>Auto</Text>
-            <Text style={styles.sliderTick}>12 Go</Text>
+            <Text style={styles.sliderTick}>12 GB</Text>
           </View>
         </View>
-        <Text style={styles.sliderValue}>{local === 0 ? 'Auto' : `${local} Go`}</Text>
+        <Text style={styles.sliderValue}>{local === 0 ? 'Auto' : `${local} GB`}</Text>
       </View>
     </View>
   );
@@ -74,7 +74,7 @@ function SimplePicker({ selectedValue, onValueChange, items }) {
           <View style={styles.modalBox}>
             <View style={styles.modalHeader}>
               <View style={styles.modalStripe} />
-              <Text style={styles.modalTitle}>Sélectionner</Text>
+              <Text style={styles.modalTitle}>Select</Text>
             </View>
             {items.map(item => (
               <TouchableOpacity
@@ -185,16 +185,16 @@ function SectionHeader({ title }) {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const GAMEMODES = [
-  { label: 'Survie', value: 0 },
-  { label: 'Créatif', value: 1 },
-  { label: 'Aventure', value: 2 },
-  { label: 'Spectateur', value: 3 },
+  { label: 'Survival', value: 0 },
+  { label: 'Creative', value: 1 },
+  { label: 'Adventure', value: 2 },
+  { label: 'Spectator', value: 3 },
 ];
 const DIFFICULTIES = [
-  { label: 'Paisible', value: 0 },
-  { label: 'Facile', value: 1 },
+  { label: 'Peaceful', value: 0 },
+  { label: 'Easy', value: 1 },
   { label: 'Normal', value: 2 },
-  { label: 'Difficile', value: 3 },
+  { label: 'Hard', value: 3 },
 ];
 
 // ── Main screen ───────────────────────────────────────────────────────────────
@@ -221,8 +221,8 @@ export default function ServerSettingsScreen({ route, navigation }) {
     })();
   }, [serverName]);
 
-  // Relit la config du serveur (après une action qui la modifie côté serveur : playit,
-  // Geyser, démarrage auto…) pour ne pas la réécraser avec une copie périmée.
+  // Re-reads the server config (after an action that modifies it on the server: playit,
+  // Geyser, autostart...) so it is never overwritten with a stale copy.
   const reloadCfg = useCallback(async () => {
     try {
       const cf = await telepathService._post('ServerObject/_sync_attr', { name: 'config_file' });
@@ -234,14 +234,14 @@ export default function ServerSettingsScreen({ route, navigation }) {
     const newProps = { ...props, [key]: value };
     setProps(newProps);
     try {
-      // Config relue juste avant d'écrire : write_config remplace tout le fichier, une copie
-      // gardée depuis le chargement annulerait les changements faits entre-temps.
+      // Config re-read right before writing: write_config replaces the whole file, a copy
+      // kept since the screen loaded would undo the changes made in the meantime.
       const fresh = await fetchFreshConfig(telepathService).catch(() => cleanConfig(cfg));
       await telepathService._post('ServerObject/write_config', {
         remote_data: { config_file: fresh, server_properties: newProps },
       });
     } catch (e) {
-      Alert.alert('Erreur', `${key}: ${e.message}`);
+      Alert.alert('Error', `${key}: ${e.message}`);
       setProps(prev => ({ ...prev, [key]: props[key] }));
     }
   }, [props, cfg]);
@@ -251,7 +251,7 @@ export default function ServerSettingsScreen({ route, navigation }) {
       await telepathService._post('ServerObject/set_ram_limit', { value });
       await reloadCfg();
     } catch (e) {
-      Alert.alert('Erreur RAM', e.message);
+      Alert.alert('RAM error', e.message);
     }
   }, [reloadCfg]);
 
@@ -260,7 +260,7 @@ export default function ServerSettingsScreen({ route, navigation }) {
       await telepathService._post('ServerObject/enable_auto_update', { enabled });
       await reloadCfg();
     } catch (e) {
-      Alert.alert('Erreur', e.message);
+      Alert.alert('Error', e.message);
     }
   }, [reloadCfg]);
 
@@ -269,7 +269,7 @@ export default function ServerSettingsScreen({ route, navigation }) {
       await telepathService._post('ServerObject/update_flags', { flags });
       await reloadCfg();
     } catch (e) {
-      Alert.alert('Erreur', e.message);
+      Alert.alert('Error', e.message);
     }
   }, [reloadCfg]);
 
@@ -277,7 +277,7 @@ export default function ServerSettingsScreen({ route, navigation }) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator color={colors.accent} size="large" />
-        <Text style={styles.loadingText}>Chargement des paramètres…</Text>
+        <Text style={styles.loadingText}>Loading settings…</Text>
       </View>
     );
   }
@@ -301,38 +301,38 @@ export default function ServerSettingsScreen({ route, navigation }) {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <SectionHeader title="Général" />
-      <InputRow label="Message du jour" value={props?.motd} onSave={v => saveProp('motd', v)} />
-      <InputRow label="Nom du monde" value={props?.['level-name']} onSave={v => saveProp('level-name', v)} />
-      <InputRow label="Graine" value={props?.['level-seed']} onSave={v => saveProp('level-seed', v)} />
-      <PickerRow label="Mode de jeu" value={props?.gamemode} onSave={v => saveProp('gamemode', v)} items={GAMEMODES} />
-      <PickerRow label="Difficulté" value={props?.difficulty} onSave={v => saveProp('difficulty', v)} items={DIFFICULTIES} />
-      <SwitchRow label="Mode hardcore" value={isBool(props?.hardcore)} onSave={v => saveProp('hardcore', v)} />
-      <InputRow label="Joueurs max" value={String(props?.['max-players'] ?? '')} onSave={v => saveProp('max-players', parseInt(v) || 20)} keyboardType="number-pad" />
+      <SectionHeader title="General" />
+      <InputRow label="Message of the day" value={props?.motd} onSave={v => saveProp('motd', v)} />
+      <InputRow label="World name" value={props?.['level-name']} onSave={v => saveProp('level-name', v)} />
+      <InputRow label="Seed" value={props?.['level-seed']} onSave={v => saveProp('level-seed', v)} />
+      <PickerRow label="Game mode" value={props?.gamemode} onSave={v => saveProp('gamemode', v)} items={GAMEMODES} />
+      <PickerRow label="Difficulty" value={props?.difficulty} onSave={v => saveProp('difficulty', v)} items={DIFFICULTIES} />
+      <SwitchRow label="Hardcore mode" value={isBool(props?.hardcore)} onSave={v => saveProp('hardcore', v)} />
+      <InputRow label="Max players" value={String(props?.['max-players'] ?? '')} onSave={v => saveProp('max-players', parseInt(v) || 20)} keyboardType="number-pad" />
       <InputRow label="Port" value={String(props?.['server-port'] ?? '')} onSave={v => saveProp('server-port', parseInt(v) || 25565)} keyboardType="number-pad" />
 
       <SectionHeader title="Gameplay" />
       <SwitchRow label="PvP" value={isNotFalse(props?.pvp)} onSave={v => saveProp('pvp', v)} />
-      <SwitchRow label="Blocs de commande" value={isBool(props?.['enable-command-block'])} onSave={v => saveProp('enable-command-block', v)} />
-      <SwitchRow label="Vol autorisé" value={isBool(props?.['allow-flight'])} onSave={v => saveProp('allow-flight', v)} />
+      <SwitchRow label="Command blocks" value={isBool(props?.['enable-command-block'])} onSave={v => saveProp('enable-command-block', v)} />
+      <SwitchRow label="Allow flight" value={isBool(props?.['allow-flight'])} onSave={v => saveProp('allow-flight', v)} />
       <SwitchRow label="Nether" value={isNotFalse(props?.['allow-nether'])} onSave={v => saveProp('allow-nether', v)} />
-      <SwitchRow label="Générer structures" value={isNotFalse(props?.['generate-structures'])} onSave={v => saveProp('generate-structures', v)} />
-      <SwitchRow label="Animaux" value={isNotFalse(props?.['spawn-animals'])} onSave={v => saveProp('spawn-animals', v)} />
-      <SwitchRow label="Monstres" value={isNotFalse(props?.['spawn-monsters'])} onSave={v => saveProp('spawn-monsters', v)} />
-      <SwitchRow label="PNJs" value={isNotFalse(props?.['spawn-npcs'])} onSave={v => saveProp('spawn-npcs', v)} />
-      <InputRow label="Distance de vue" value={String(props?.['view-distance'] ?? '')} onSave={v => saveProp('view-distance', parseInt(v) || 10)} keyboardType="number-pad" />
-      <InputRow label="Simulation" value={String(props?.['simulation-distance'] ?? '')} onSave={v => saveProp('simulation-distance', parseInt(v) || 10)} keyboardType="number-pad" />
+      <SwitchRow label="Generate structures" value={isNotFalse(props?.['generate-structures'])} onSave={v => saveProp('generate-structures', v)} />
+      <SwitchRow label="Animals" value={isNotFalse(props?.['spawn-animals'])} onSave={v => saveProp('spawn-animals', v)} />
+      <SwitchRow label="Monsters" value={isNotFalse(props?.['spawn-monsters'])} onSave={v => saveProp('spawn-monsters', v)} />
+      <SwitchRow label="NPCs" value={isNotFalse(props?.['spawn-npcs'])} onSave={v => saveProp('spawn-npcs', v)} />
+      <InputRow label="View distance" value={String(props?.['view-distance'] ?? '')} onSave={v => saveProp('view-distance', parseInt(v) || 10)} keyboardType="number-pad" />
+      <InputRow label="Simulation distance" value={String(props?.['simulation-distance'] ?? '')} onSave={v => saveProp('simulation-distance', parseInt(v) || 10)} keyboardType="number-pad" />
 
-      <SectionHeader title="Connexion" />
-      <SwitchRow label="Mode en ligne" value={isNotFalse(props?.['online-mode'])} onSave={v => saveProp('online-mode', v)} />
+      <SectionHeader title="Network" />
+      <SwitchRow label="Online mode" value={isNotFalse(props?.['online-mode'])} onSave={v => saveProp('online-mode', v)} />
       <SwitchRow label="Whitelist" value={isBool(props?.['white-list'])} onSave={v => saveProp('white-list', v)} />
 
       <SectionHeader title="auto-mcs" />
       <RamSlider value={g?.allocatedMemory ?? g?.allocatedmemory ?? ''} onSave={saveRam} />
-      <SwitchRow label="Mise à jour auto" value={isNotFalse(g?.updateAuto ?? g?.updateauto)} onSave={saveAutoUpdate} />
-      <InputRow label="Flags Java" value={g?.customFlags ?? g?.customflags ?? ''} onSave={saveFlags} placeholder="-Xmx2G -Xms2G" />
+      <SwitchRow label="Auto update" value={isNotFalse(g?.updateAuto ?? g?.updateauto)} onSave={saveAutoUpdate} />
+      <InputRow label="Java flags" value={g?.customFlags ?? g?.customflags ?? ''} onSave={saveFlags} placeholder="-Xmx2G -Xms2G" />
       <InputRow
-        label="Sauvegardes max"
+        label="Max backups"
         value={cfg?.bkup?.bkupMax ?? cfg?.general?.maxbackups ?? '5'}
         onSave={async (v) => {
           try {
@@ -343,7 +343,7 @@ export default function ServerSettingsScreen({ route, navigation }) {
             });
             setCfg(newCfg);
           } catch (e) {
-            Alert.alert('Erreur', e.message);
+            Alert.alert('Error', e.message);
           }
         }}
         keyboardType="number-pad"
@@ -353,20 +353,20 @@ export default function ServerSettingsScreen({ route, navigation }) {
         style={styles.restoreLink}
         onPress={() => navigation.navigate('BackupList', { serverName })}
       >
-        <Text style={styles.restoreLinkText}>📂 Gérer les sauvegardes</Text>
+        <Text style={styles.restoreLinkText}>📂 Manage backups</Text>
       </TouchableOpacity>
 
-      <SectionHeader title="Avancé" />
-      <InputRow label="Adresse IP" value={props?.['server-ip'] ?? ''} onSave={v => saveProp('server-ip', v)} placeholder="toutes les interfaces" />
-      <InputRow label="Hauteur max" value={String(props?.['max-build-height'] ?? '')} onSave={v => saveProp('max-build-height', parseInt(v) || 256)} keyboardType="number-pad" />
+      <SectionHeader title="Advanced" />
+      <InputRow label="IP address" value={props?.['server-ip'] ?? ''} onSave={v => saveProp('server-ip', v)} placeholder="all interfaces" />
+      <InputRow label="Max build height" value={String(props?.['max-build-height'] ?? '')} onSave={v => saveProp('max-build-height', parseInt(v) || 256)} keyboardType="number-pad" />
       <InputRow label="Level type" value={props?.['level-type'] ?? ''} onSave={v => saveProp('level-type', v)} placeholder="normal" />
-      <InputRow label="Tick max (ms)" value={String(props?.['max-tick-time'] ?? '')} onSave={v => saveProp('max-tick-time', parseInt(v) || 60000)} keyboardType="number-pad" />
-      <InputRow label="Protection spawn" value={String(props?.['spawn-protection'] ?? '')} onSave={v => saveProp('spawn-protection', parseInt(v) || 16)} keyboardType="number-pad" />
-      <InputRow label="Compression réseau" value={String(props?.['network-compression-threshold'] ?? '')} onSave={v => saveProp('network-compression-threshold', parseInt(v) || 256)} keyboardType="number-pad" />
+      <InputRow label="Max tick time (ms)" value={String(props?.['max-tick-time'] ?? '')} onSave={v => saveProp('max-tick-time', parseInt(v) || 60000)} keyboardType="number-pad" />
+      <InputRow label="Spawn protection" value={String(props?.['spawn-protection'] ?? '')} onSave={v => saveProp('spawn-protection', Number.isNaN(parseInt(v, 10)) ? 16 : parseInt(v, 10))} keyboardType="number-pad" />
+      <InputRow label="Network compression" value={String(props?.['network-compression-threshold'] ?? '')} onSave={v => saveProp('network-compression-threshold', parseInt(v) || 256)} keyboardType="number-pad" />
       <SwitchRow label="Snooper" value={isNotFalse(props?.['snooper-enabled'])} onSave={v => saveProp('snooper-enabled', v)} />
-      <SwitchRow label="Whitelist stricte" value={isBool(props?.['enforce-whitelist'])} onSave={v => saveProp('enforce-whitelist', v)} />
-      <SwitchRow label="Profils sécurisés" value={isNotFalse(props?.['enforce-secure-profile'])} onSave={v => saveProp('enforce-secure-profile', v)} />
-      <InputRow label="Pack de ressource" value={props?.['resource-pack'] ?? ''} onSave={v => saveProp('resource-pack', v)} placeholder="URL" />
+      <SwitchRow label="Enforce whitelist" value={isBool(props?.['enforce-whitelist'])} onSave={v => saveProp('enforce-whitelist', v)} />
+      <SwitchRow label="Secure profiles" value={isNotFalse(props?.['enforce-secure-profile'])} onSave={v => saveProp('enforce-secure-profile', v)} />
+      <InputRow label="Resource pack" value={props?.['resource-pack'] ?? ''} onSave={v => saveProp('resource-pack', v)} placeholder="URL" />
 
       <ServerManagement
         serverName={serverName}

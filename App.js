@@ -43,11 +43,11 @@ export default function App() {
       >
         <Stack.Screen name="Connect" component={ConnectScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Servers" component={ServersScreen} options={{ headerShown: false }} />
-        <Stack.Screen name="ServerDetail" component={ServerDetailScreen} options={{ title: 'Serveur' }} />
-        <Stack.Screen name="ServerSettings" component={ServerSettingsScreen} options={{ title: 'Paramètres' }} />
-        <Stack.Screen name="ModDetail" component={ModDetailScreen} options={{ title: 'Détails du mod' }} />
-        <Stack.Screen name="BackupList" component={BackupListScreen} options={{ title: 'Sauvegardes' }} />
-        <Stack.Screen name="CreateServer" component={CreateServerScreen} options={{ title: 'Nouveau serveur' }} />
+        <Stack.Screen name="ServerDetail" component={ServerDetailScreen} options={{ title: 'Server' }} />
+        <Stack.Screen name="ServerSettings" component={ServerSettingsScreen} options={{ title: 'Settings' }} />
+        <Stack.Screen name="ModDetail" component={ModDetailScreen} options={{ title: 'Mod details' }} />
+        <Stack.Screen name="BackupList" component={BackupListScreen} options={{ title: 'Backups' }} />
+        <Stack.Screen name="CreateServer" component={CreateServerScreen} options={{ title: 'New server' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

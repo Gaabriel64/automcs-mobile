@@ -1,17 +1,17 @@
-// Rendu de la console, identique à celui d'auto-mcs (desktop).
+// Console rendering, identical to the auto-mcs desktop one.
 //
-// Sources côté auto-mcs :
-//  - ServerObject.update_log (source/core/server/manager.py) : chaque ligne du
-//    journal est envoyée sous la forme { text: [heure, TYPE, message, [r,g,b,a]] }
-//    (couleurs en flottants 0..1, comme dans Kivy).
-//  - views/server/manager/console.py : le message prend la couleur du type ;
-//    l'heure et le type sont dans des pastilles (fond = couleur éclaircie de
-//    -0.2 pour l'heure, couleur du type pour le type, texte = couleur - 0.65).
-//  - Les codes de couleur Minecraft (§a, §c…) sont déjà convertis par le serveur
-//    en balises Kivy [color=#RRGGBB]…[/color] ; les caractères [ ] & du message
-//    sont échappés (&bl; &br; &amp;), voir kivy.utils.escape_markup.
+// Sources on the auto-mcs side:
+//  - ServerObject.update_log (source/core/server/manager.py): every log line is sent
+//    as { text: [time, TYPE, message, [r,g,b,a]] }
+//    (colors as floats 0..1, like in Kivy).
+//  - views/server/manager/console.py: the message takes the type color;
+//    time and type are drawn in pills (background = type color brightened by
+//    -0.2 for the time, type color for the type, text = color - 0.65).
+//  - Minecraft color codes (§a, §c...) are already converted by the server
+//    into Kivy tags [color=#RRGGBB]...[/color]; the characters [ ] & of the message
+//    are escaped (&bl; &br; &amp;), see kivy.utils.escape_markup.
 
-// Couleurs par type quand le serveur n'envoie pas la couleur (valeurs de update_log)
+// Colors per type when the server does not send the color (values from update_log)
 export const TYPE_COLORS = {
   INFO:   [0.6, 0.6, 1, 1],
   CHAT:   [0.439, 0.839, 1, 1],
@@ -28,7 +28,7 @@ export const TYPE_COLORS = {
 
 const clamp01 = (v) => (v > 1 ? 1 : v < 0 ? 0 : v);
 
-// Équivalent de constants.brighten_color : décalage additif par canal RGB (alpha inchangé)
+// Equivalent of constants.brighten_color: additive shift per RGB channel (alpha unchanged)
 export function brighten(color, amount) {
   const [r, g, b, a = 1] = color;
   return [clamp01(r + amount), clamp01(g + amount), clamp01(b + amount), a];
@@ -43,9 +43,9 @@ function decodeEntities(text) {
   return text.replace(/&bl;/g, '[').replace(/&br;/g, ']').replace(/&amp;/g, '&');
 }
 
-// Transforme un message avec balises Kivy en segments { text, color|null }.
-// Le serveur n'équilibre pas toujours les balises (une balise ouvrante par code §),
-// on utilise donc une pile et on ignore ce qui reste ouvert à la fin.
+// Turns a message with Kivy tags into segments { text, color|null }.
+// The server does not always balance tags (one opening tag per § code),
+// so a stack is used and whatever stays open at the end is ignored.
 export function parseMarkup(message) {
   const source = String(message ?? '');
   const segments = [];
@@ -56,7 +56,7 @@ export function parseMarkup(message) {
 
   const push = (raw) => {
     if (!raw) return;
-    // Retire les codes § résiduels (non convertis par le serveur) pour l'affichage
+    // Remove leftover § codes (not converted by the server) for display
     const text = decodeEntities(raw).replace(/§[0-9a-fk-or]/gi, '');
     if (text) segments.push({ text, color: stack.length ? stack[stack.length - 1] : null });
   };
@@ -72,7 +72,7 @@ export function parseMarkup(message) {
   return segments.length ? segments : [{ text: '', color: null }];
 }
 
-// Normalise une entrée de run_data.log
+// Normalizes an entry of run_data.log
 export function parseLogEntry(entry) {
   const t = entry && typeof entry === 'object' && 'text' in entry ? entry.text : entry;
 
@@ -87,26 +87,26 @@ export function parseLogEntry(entry) {
   return { time: '', type: 'INFO', color: TYPE_COLORS.INFO, message, segments: parseMarkup(message) };
 }
 
-// Ligne locale (écho de commande, erreur réseau…)
+// Local line (command echo, network error...)
 export function makeLocalLine(type, message) {
   const color = TYPE_COLORS[type] || TYPE_COLORS.INFO;
   return { time: '', type, color, message, segments: [{ text: message, color: null }] };
 }
 
-// Signature d'une entrée (heure + type + message)
+// Signature of an entry (time + type + message)
 export function entrySignature(entry) {
   const t = entry && typeof entry === 'object' && 'text' in entry ? entry.text : entry;
   if (Array.isArray(t)) return `${t[0]}|${t[1]}|${t[2]}`;
   return typeof t === 'string' ? t : JSON.stringify(entry);
 }
 
-// Le serveur garde au plus 2000 lignes (max_log_size) et supprime les plus
-// anciennes : les index se décalent à chaque nouvelle ligne, on ne peut donc pas
-// dédoublonner avec l'index. On cherche à la place où se termine la fin de la
-// liste déjà affichée à l'intérieur de la liste reçue.
+// The server keeps at most 2000 lines (max_log_size) and drops the oldest ones:
+// indexes shift with every new line, so the index cannot be used to deduplicate.
+// Instead, look for where the end of the already displayed list sits inside the
+// received list.
 //
-// Retourne l'index de la première nouvelle entrée, ou -1 si les deux listes ne se
-// recoupent pas (journal remis à zéro, serveur relancé…) : il faut alors tout réafficher.
+// Returns the index of the first new entry, or -1 if the two lists do not overlap
+// (log reset, server restarted...): everything must then be displayed again.
 export function findNewStart(prevSigs, curSigs) {
   if (!prevSigs.length) return 0;
 
@@ -125,7 +125,7 @@ export function findNewStart(prevSigs, curSigs) {
 
   const K = Math.min(prevSigs.length, 10);
   let end = tryTail(prevSigs.slice(-K));
-  // La dernière ligne peut avoir été modifiée sur place (barre « Preparing spawn area »)
+  // The last line may have been modified in place ("Preparing spawn area" bar)
   if (end === -1 && prevSigs.length > 1) end = tryTail(prevSigs.slice(-K - 1, -1));
   return end;
 }

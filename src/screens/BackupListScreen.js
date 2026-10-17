@@ -18,7 +18,7 @@ export default function BackupListScreen({ route, navigation }) {
       const list = await telepathService._get('BackupManager/return_backup_list');
       setBackups(Array.isArray(list) ? list : []);
     } catch (e) {
-      Alert.alert('Erreur', e.message);
+      Alert.alert('Error', e.message);
     } finally {
       setLoading(false);
     }
@@ -28,19 +28,19 @@ export default function BackupListScreen({ route, navigation }) {
 
   const handleRestore = (backup) => {
     Alert.alert(
-      'Restaurer',
-      `Restaurer "${backup.name}" ? Cette action écrasera le monde actuel.`,
+      'Restore',
+      `Restore "${backup.name}"? This will overwrite the current world.`,
       [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Restaurer', style: 'destructive', onPress: async () => {
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Restore', style: 'destructive', onPress: async () => {
           setRestoring(backup.name);
           try {
             await telepathService._post('BackupManager/restore', { backup_name: backup.name });
-            Alert.alert('Succès', 'Sauvegarde restaurée. Le serveur va redémarrer si nécessaire.');
+            Alert.alert('Success', 'Backup restored. The server will restart if needed.');
             navigation.goBack();
           } catch (e) {
             const msg = typeof e === 'string' ? e : e?.message || e?.detail || JSON.stringify(e);
-            Alert.alert('Erreur', msg);
+            Alert.alert('Error', msg);
           } finally {
             setRestoring(null);
           }
@@ -51,8 +51,8 @@ export default function BackupListScreen({ route, navigation }) {
 
   const formatSize = (bytes) => {
     if (!bytes) return '—';
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' Ko';
-    return (bytes / 1048576).toFixed(1) + ' Mo';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
   if (loading) return (
@@ -69,7 +69,7 @@ export default function BackupListScreen({ route, navigation }) {
         renderItem={({ item }) => (
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{item.name || 'Sauvegarde'}</Text>
+              <Text style={styles.name}>{item.name || 'Backup'}</Text>
               <Text style={styles.meta}>
                 {item.date || ''}  ·  {formatSize(item.size)}
               </Text>
@@ -82,13 +82,13 @@ export default function BackupListScreen({ route, navigation }) {
               {restoring === item.name ? (
                 <ActivityIndicator color={colors.accent} size="small" />
               ) : (
-                <Text style={styles.restoreText}>Restaurer</Text>
+                <Text style={styles.restoreText}>Restore</Text>
               )}
             </TouchableOpacity>
           </View>
         )}
         ListEmptyComponent={
-          <Text style={styles.empty}>Aucune sauvegarde trouvée</Text>
+          <Text style={styles.empty}>No backups found</Text>
         }
       />
     </View>

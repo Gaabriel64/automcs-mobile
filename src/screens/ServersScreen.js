@@ -45,7 +45,7 @@ function StatusPill({ running }) {
     <View style={[pillStyles.pill, running ? pillStyles.online : pillStyles.offline]}>
       <View style={[pillStyles.dot, { backgroundColor: running ? colors.green : colors.textMuted }]} />
       <Text style={[pillStyles.text, { color: running ? colors.green : colors.textMuted }]}>
-        {running ? 'EN LIGNE' : 'ARRÊTÉ'}
+        {running ? 'ONLINE' : 'STOPPED'}
       </Text>
     </View>
   );
@@ -66,7 +66,7 @@ const pillStyles = StyleSheet.create({
 // ── Server card ───────────────────────────────────────────────────────────────
 function ServerCard({ server, onPress, onToggleFavorite }) {
   const running  = server?.running || false;
-  const name     = server?.name    || 'Serveur inconnu';
+  const name     = server?.name    || 'Unknown server';
   const type     = server?.type    || '';
   const version  = server?.version || '';
   const players  = server?.player_count;
@@ -140,7 +140,7 @@ function ScreenHeader({ host, port, onDisconnect }) {
   return (
     <View style={headerStyles.wrap}>
       <View>
-        <Text style={headerStyles.title}>SERVEURS</Text>
+        <Text style={headerStyles.title}>SERVERS</Text>
         <View style={headerStyles.hostRow}>
           <View style={headerStyles.hostDot} />
           <Text style={headerStyles.host}>{host}:{port}</Text>
@@ -237,14 +237,14 @@ export default function ServersScreen({ navigation }) {
       await telepathService._post('ServerObject/write_config', { remote_data: { config_file: newCf, server_properties: sp } });
     } catch (e) {
       setServers(prev => prev.map(s => s.name === name ? { ...s, favorite: !newFav } : s));
-      Alert.alert('Erreur', e.message);
+      Alert.alert('Error', e.message);
     }
   };
 
   const handleDisconnect = () => {
-    Alert.alert('Déconnexion', 'Se déconnecter de Telepath ?', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Déconnecter', style: 'destructive', onPress: async () => {
+    Alert.alert('Disconnect', 'Disconnect from Telepath?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Disconnect', style: 'destructive', onPress: async () => {
         await telepathService.logout();
         navigation.replace('Connect');
       }},
@@ -262,17 +262,17 @@ export default function ServersScreen({ navigation }) {
       {loading && !refreshing ? (
         <CenteredState
           icon="⚡"
-          title="Chargement des serveurs…"
+          title="Loading servers…"
           subtitle={`${telepathService.host}:${telepathService.port}`}
         />
       ) : error ? (
         <CenteredState
           icon="⚠️"
-          title="Connexion perdue"
+          title="Connection lost"
           subtitle={error}
           action={
             <TouchableOpacity style={styles.retryBtn} onPress={() => loadServers()}>
-              <Text style={styles.retryText}>Réessayer</Text>
+              <Text style={styles.retryText}>Retry</Text>
             </TouchableOpacity>
           }
         />
@@ -298,8 +298,8 @@ export default function ServersScreen({ navigation }) {
           ListEmptyComponent={
             <CenteredState
               icon="📭"
-              title="Aucun serveur"
-              subtitle="Aucun serveur n'a été trouvé sur cette instance"
+              title="No servers"
+              subtitle="No servers were found on this instance"
             />
           }
         />

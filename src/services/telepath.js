@@ -8,15 +8,15 @@ const STORAGE_KEYS = {
   SESSION_ID: 'telepath_session_id',
   CLIENT_HOST: 'telepath_client_host',
   CLIENT_USER: 'telepath_client_user',
-  PROFILES: 'telepath_profiles',  // stockera un tableau de profils
+  PROFILES: 'telepath_profiles',  // will store an array of profiles
 };
 
-// Versions de l'API Telepath que l'app sait parler (la première est la préférée).
-// auto-mcs exige une égalité stricte avec sa propre version et ne négocie rien :
-// 1.3.4 = branche ui-fixes/dev (prochaine version), 1.3.3 = dev avant le 5 oct. 2026,
-// 1.2.2 = version actuelle de main. Une version n'est ajoutée ici qu'après avoir lu
-// ce qui a changé dans l'API (1.3.3 → 1.3.4 : addon_state/script_state gagnent
-// un paramètre optionnel `all`, rétrocompatible).
+// Telepath API versions this app can speak (the first one is preferred).
+// auto-mcs requires an exact match with its own version and does not negotiate:
+// 1.3.4 = ui-fixes/dev branch (next version), 1.3.3 = dev before Oct 5, 2026,
+// 1.2.2 = current main. A version is only added here after reading what changed in
+// the API (1.3.3 -> 1.3.4: addon_state/script_state gained an optional `all`
+// parameter, backward compatible).
 const SUPPORTED_TELEPATH_VERSIONS = ['1.3.4', '1.3.3', '1.2.2'];
 const TELEPATH_VERSION = SUPPORTED_TELEPATH_VERSIONS[0];
 
@@ -54,7 +54,7 @@ class TelepathService {
     return `http://${this.host}:${this.port}`;
   }
 
-  // Version Telepath à annoncer à ce serveur (celle qu'il nous a demandée, sinon la préférée)
+  // Telepath version to announce to this server (the one it asked for, else the preferred one)
   _apiVersion() {
     return this._apiVersions?.[`${this.host}:${this.port}`] || TELEPATH_VERSION;
   }
@@ -99,7 +99,7 @@ class TelepathService {
     await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
   }
 
-  // Récupère tous les profils sauvegardés
+  // Get all saved profiles
   async getProfiles() {
     try {
       const json = await AsyncStorage.getItem(STORAGE_KEYS.PROFILES);
@@ -109,17 +109,17 @@ class TelepathService {
     }
   }
 
-  // Ajoute ou met à jour un profil (clé = host:port)
+  // Add or update a profile (key = host:port)
   async saveProfile(profile) {
     const key = `${profile.host}:${profile.port}`;
     const profiles = await this.getProfiles();
     const idx = profiles.findIndex(p => `${p.host}:${p.port}` === key);
     if (idx !== -1) profiles[idx] = profile;
-    else profiles.unshift(profile); // insère en premier (le plus récent)
+    else profiles.unshift(profile); // insert first (most recent)
     await AsyncStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
   }
 
-  // Test rapide avec timeout court
+  // Quick test with a short timeout
   async _quickCheck(host, port) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 2000); // 2 secondes max
@@ -135,7 +135,7 @@ class TelepathService {
     }
   }
 
-  // Supprime un profil (si besoin)
+  // Remove a profile (if needed)
   async removeProfile(host, port) {
     const key = `${host}:${port}`;
     let profiles = await this.getProfiles();
@@ -143,13 +143,13 @@ class TelepathService {
     await AsyncStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
   }
 
-  // Tente de se connecter sur chaque profil connu ; retourne true si un profil fonctionne
+  // Try to connect to every known profile; returns true if one works
   async tryReconnect() {
     this.lastReconnectError = null;
     const profiles = await this.getProfiles();
     if (profiles.length === 0) return false;
     
-    // Lancer tous les tests en parallèle
+    // Run all tests in parallel
     const results = await Promise.all(
       profiles.map(async (profile) => {
         const reachable = await this._quickCheck(profile.host, profile.port);
@@ -157,11 +157,11 @@ class TelepathService {
       })
     );
     
-    // Chercher le premier profil joignable
+    // Find the first reachable profile
     const found = results.find(r => r.reachable);
     if (!found) return false;
     
-    // Utiliser ce profil
+    // Use that profile
     const { profile } = found;
     this.host = profile.host;
     this.port = profile.port;
@@ -170,7 +170,7 @@ class TelepathService {
     this.clientHost = profile.clientHost || 'mobile-app';
     this.clientUser = profile.clientUser || 'mobile-user';
     
-    // Tenter le login (garde le timeout normal ici, car on sait que le serveur répond)
+    // Try to log in (normal timeout here, since we know the server answers)
     try {
       const data = await this.login();
       if (data?.['access-token']) {
@@ -178,7 +178,7 @@ class TelepathService {
         return true;
       }
     } catch (e) {
-      // Mémorisé pour que l'UI puisse expliquer l'échec (ex. version Telepath incompatible)
+      // Remembered so the UI can explain the failure (e.g. incompatible Telepath version)
       this.lastReconnectError = e;
     }
     
@@ -197,8 +197,8 @@ class TelepathService {
     try {
       response = await fetch(url, { ...fetchOptions, headers: { ...headers, ...fetchOptions.headers }, signal: controller.signal });
     } catch (e) {
-      if (e.name === 'AbortError') throw new Error(`Timeout — impossible de joindre ${this.host}:${this.port}`);
-      throw new Error(`Réseau inaccessible : ${e.message}`);
+      if (e.name === 'AbortError') throw new Error(`Timeout: could not reach ${this.host}:${this.port}`);
+      throw new Error(`Network unreachable: ${e.message}`);
     } finally {
       clearTimeout(timer);
     }
@@ -207,14 +207,14 @@ class TelepathService {
       let detail = `HTTP ${response.status}`;
       try { const j = await response.json(); detail = j.detail || detail; } catch {}
 
-      // auto-mcs refuse login et pairing si les versions Telepath diffèrent (égalité stricte)
-      // et indique la sienne : « API versions do not match. Server - v1.2.2 » (login) ou
+      // auto-mcs refuses login and pairing when Telepath versions differ (exact match)
+      // and reports its own: "API versions do not match. Server - v1.2.2" (login) or
       // « API versions do not match - server is v1.3.3 » (pairing).
       const mismatch = /versions do not match.*?v?(\d+(?:\.\d+)+)/i.exec(String(detail));
       if (mismatch) {
         const serverVersion = mismatch[1];
 
-        // Version qu'on sait parler : on la retient pour ce serveur et on rejoue la requête une fois
+        // A version we can speak: remember it for this server and replay the request once
         if (SUPPORTED_TELEPATH_VERSIONS.includes(serverVersion) && !_versionRetried && fetchOptions.body) {
           let body = null;
           try { body = JSON.parse(fetchOptions.body); } catch {}
@@ -226,8 +226,8 @@ class TelepathService {
         }
 
         const err = new Error(
-          `Version Telepath incompatible : le serveur est en v${serverVersion}, ` +
-          `cette app gère v${SUPPORTED_TELEPATH_VERSIONS.join(' et v')}. Mets à jour l'app (ou auto-mcs).`
+          `Incompatible Telepath version: the server is v${serverVersion}, ` +
+          `this app supports v${SUPPORTED_TELEPATH_VERSIONS.join(' and v')}. Update the app (or auto-mcs).`
         );
         err.code = 'TELEPATH_VERSION_MISMATCH';
         err.serverVersion = serverVersion;
@@ -246,12 +246,12 @@ class TelepathService {
   // POST shorthand
   _post(endpoint, body) { return this._fetch(endpoint, { method: 'POST', body: JSON.stringify(body) }); }
 
-  // ── Addons : compatibilité avec auto-mcs officiel (sans patch serveur) ─────
-  // Côté serveur, delete_addon / addon_state attendent un objet avec `.path`.
-  // Le serveur sait reconstruire un objet depuis un dict marqué `__reconstruct__`
-  // (c'est ce que fait le client desktop). On retrouve donc l'addon installé
-  // dans la liste FRAÎCHE (le `path` change quand on active/désactive un mod) et
-  // on le renvoie avec les marqueurs attendus.
+  // ── Addons: compatibility with official auto-mcs (no server patch) ─────
+  // On the server, delete_addon / addon_state expect an object with `.path`.
+  // The server can rebuild an object from a dict marked `__reconstruct__`
+  // (this is what the desktop client does). So we find the installed addon in the
+  // FRESH list (`path` changes when a mod is enabled/disabled) and send it back
+  // with the expected markers.
   async _resolveInstalledAddon(ref) {
     const id = String(ref?.id ?? (typeof ref === 'string' ? ref : '')).trim().toLowerCase();
     const name = String(ref?.name ?? '').trim().toLowerCase();
@@ -260,10 +260,10 @@ class TelepathService {
     const found = (Array.isArray(list) ? list : []).find(a =>
       (id && a.id?.toLowerCase() === id) || (name && a.name?.toLowerCase() === name)
     );
-    if (!found) throw new Error('Mod introuvable parmi les mods installés du serveur');
+    if (!found) throw new Error('Mod not found among the server\'s installed mods');
 
-    // Sans `path` (liste inattendue) : repli sur l'id seul, ce qui fonctionne
-    // avec les serveurs qui acceptent un nom/id (ex. le fork de Gaabriel64).
+    // Without `path` (unexpected list): fall back to the bare id, which works
+    // with servers that accept a name/id (e.g. Gaabriel64's fork).
     if (!found.path) return found.id;
 
     return { ...found, __reconstruct__: 'RemoteAddonFileObject', _telepath_data: found };
@@ -346,16 +346,16 @@ class TelepathService {
   // _sync_attr exposes run_data (logs + performance + player-list) via POST
   async getRunData() { return this._post('ServerObject/_sync_attr', { name: 'run_data' }); }
 
-  // --- Gestion du serveur ouvert (appeler openServer(name) avant) ---
-  // Les opérations longues (installation, suppression) ont un délai étendu : le serveur
-  // répond seulement une fois terminé.
+  // --- Management of the opened server (call openServer(name) first) ---
+  // Long operations (install, delete) get an extended timeout: the server only
+  // answers once they are done.
   async getServerAttr(name) { return this._post('ServerObject/_sync_attr', { name }); }
   async reloadConfig() { return this._post('ServerObject/reload_config', {}); }
   async renameServer(newName) { return this._post('ServerObject/rename', { new_name: newName }); }
   async deleteServer() { return this._fetch('ServerObject/delete', {}, 180000); }
   async setAutostart(enabled) { return this._post('ServerObject/enable_autostart', { enabled }); }
 
-  // playit.gg : proxy_installed = agent installé ET compte lié
+  // playit.gg: proxy_installed = agent installed AND account linked
   async proxyInstalled() { return this._get('ServerObject/proxy_installed'); }
   async getPlayitUrl() { return this._get('ServerObject/get_playit_url'); }
   async setProxy(enabled) { return this._post('ServerObject/enable_proxy', { enabled }); }
@@ -366,13 +366,13 @@ class TelepathService {
     }, 120000);
   }
 
-  // --- Création de serveur (voir services/createServer.js) ---
+  // --- Server creation (see services/createServer.js) ---
   async checkFreeSpace() { return this._get('main/check_free_space'); }
   async createCall(endpoint, body, timeoutMs) {
     return this._fetch(endpoint, { method: 'POST', body: JSON.stringify(body ?? {}) }, timeoutMs);
   }
 
-  // Geyser/Floodgate/ViaVersion : télécharge ou retire les addons sur le serveur
+  // Geyser/Floodgate/ViaVersion: downloads or removes the addons on the server
   async installGeyser(install) {
     return this._fetch('AddonManager/_install_geyser', {
       method: 'POST', body: JSON.stringify({ install }),

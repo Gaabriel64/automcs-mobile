@@ -1,6 +1,6 @@
-// Gestion du serveur : démarrage auto, playit.gg, Geyser (Bedrock), renommer, supprimer.
-// Reproduit ce que fait la page « Paramètres » du desktop d'auto-mcs, en appelant les
-// mêmes méthodes de ServerObject / AddonManager via Telepath.
+// Server management: autostart, playit.gg, Geyser (Bedrock), rename, delete.
+// Mirrors what the auto-mcs desktop "Settings" page does, by calling the same
+// ServerObject / AddonManager methods through Telepath.
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Switch, TextInput, TouchableOpacity,
@@ -10,17 +10,17 @@ import { telepathService } from '../services/telepath';
 import { fetchFreshConfig } from '../utils/config';
 import { colors, spacing, radius } from '../theme';
 
-// URL ouverte par le desktop pour obtenir le code (playit.manager.setup_url)
+// URL opened by the desktop to get the code (playit.manager.setup_url)
 const PLAYIT_SETUP_URL =
   'https://playit.gg/account/setup/wizard/new-account/third-party/third-party-code?partner=auto-mcs';
 
-// Types pour lesquels auto-mcs propose Geyser (AddonManager.check_geyser / reload_config)
+// Types for which auto-mcs offers Geyser (AddonManager.check_geyser / reload_config)
 const GEYSER_TYPES = ['spigot', 'paper', 'purpur', 'fabric', 'quilt', 'neoforge'];
 const INVALID_NAME = /[\\/:*?"<>|]/;
 
 const isTrue = v => v === true || String(v).toLowerCase() === 'true';
 
-// Compare deux versions « 1.20.4 » : vrai si a >= b
+// Compares two versions like "1.20.4": true if a >= b
 function versionAtLeast(a, b) {
   const pa = String(a || '').split('.').map(n => parseInt(n, 10) || 0);
   const pb = String(b || '').split('.').map(n => parseInt(n, 10) || 0);
@@ -85,7 +85,7 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
   const [type, setType]             = useState('');
   const [version, setVersion]       = useState('');
   const [proxyLinked, setProxyLinked] = useState(null);
-  // État réel des interrupteurs, lu sur le serveur (null = inconnu / non pris en charge)
+  // Real state of the switches, read from the server (null = unknown / not supported)
   const [flags, setFlags]           = useState({ proxy: null, geyser: null, autostart: null });
   const [busy, setBusy]             = useState('');
   const [code, setCode]             = useState('');
@@ -94,19 +94,19 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
   const [showDelete, setShowDelete] = useState(false);
 
   const g = cfg?.general || {};
-  // Source de vérité : attributs du serveur (proxy_enabled, geyser_enabled, autostart), ceux
-  // qu'il utilise au lancement. Repli sur le .ini, dont les clés respectent la casse exacte.
+  // Source of truth: server attributes (proxy_enabled, geyser_enabled, autostart), the ones
+  // it uses at launch. Falls back to the .ini, whose keys keep their exact case.
   const proxyOn     = flags.proxy     ?? isTrue(g.enableProxy);
   const geyserOn    = flags.geyser    ?? isTrue(g.enableGeyser);
   const autostartOn = flags.autostart ?? isTrue(g.autostart);
   const geyserSupported =
     GEYSER_TYPES.includes(String(type).toLowerCase()) && versionAtLeast(version, '1.13.2');
 
-  // Associe notre appareil à ce serveur avant toute action (comme le fait l'app desktop)
+  // Bind our device to this server before any action (like the desktop app does)
   const ensureOpen = useCallback(() => telepathService.openServer(serverName), [serverName]);
 
-  // Relit les attributs de chaque interrupteur ; garde l'ancienne valeur si la lecture échoue
-  // (ex. `autostart` n'existe pas avant auto-mcs 1.3).
+  // Re-reads the attribute of each switch; keeps the old value if the read fails
+  // (e.g. `autostart` does not exist before auto-mcs 1.3).
   const readFlags = useCallback(async () => {
     const [p, ge, a] = await Promise.allSettled([
       telepathService.getServerAttr('proxy_enabled'),
@@ -137,8 +137,8 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
 
   useEffect(() => { refreshState(); }, [refreshState]);
 
-  // Exécute une action en bloquant les autres, avec message d'erreur lisible
-  const run = useCallback(async (key, fn, errorTitle = 'Erreur') => {
+  // Runs an action while blocking the others, with a readable error message
+  const run = useCallback(async (key, fn, errorTitle = 'Error') => {
     if (busy) return false;
     setBusy(key);
     try {
@@ -147,7 +147,7 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
       return true;
     } catch (e) {
       if (notSupported(e)) {
-        Alert.alert('Non pris en charge', "Cette version d'auto-mcs ne propose pas cette fonction.");
+        Alert.alert('Not supported', 'This version of auto-mcs does not offer this feature.');
       } else {
         Alert.alert(errorTitle, e.message);
       }
@@ -157,8 +157,8 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
     }
   }, [busy, ensureOpen]);
 
-  // Écrit une valeur de [general] à partir de la config FRAÎCHE du serveur,
-  // pour ne jamais écraser un réglage modifié entre-temps.
+  // Writes a [general] value starting from the FRESH server config,
+  // so a setting changed in the meantime is never overwritten.
   const setConfigValue = async (key, value) => {
     const [cf, sp] = await Promise.all([
       fetchFreshConfig(telepathService),
@@ -172,13 +172,13 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
 
   const requireStopped = (what) => {
     if (running) {
-      Alert.alert('Serveur en cours', `Arrête le serveur avant de ${what}.`);
+      Alert.alert('Server running', `Stop the server before you ${what}.`);
       return false;
     }
     return true;
   };
 
-  // ── Démarrage automatique ──
+  // ── Autostart ──
   const toggleAutostart = v => run('autostart', async () => {
     await telepathService.setAutostart(v);
     setFlags(f => ({ ...f, autostart: v }));
@@ -192,41 +192,41 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
     setFlags(f => ({ ...f, proxy: v }));
     await readFlags();
     await onCfgChanged?.();
-    if (running) Alert.alert('Redémarrage nécessaire', 'Redémarre le serveur pour appliquer ce changement.');
+    if (running) Alert.alert('Restart required', 'Restart the server to apply this change.');
   });
 
   const linkPlayit = async () => {
     const c = code.trim();
-    if (!c) { Alert.alert('Code manquant', 'Colle le code affiché sur playit.gg.'); return; }
+    if (!c) { Alert.alert('Missing code', 'Paste the code shown on playit.gg.'); return; }
     const ok = await run('link', async () => {
       const linked = await telepathService.linkPlayit(c);
-      if (!linked) throw new Error('Échec de la liaison : code invalide, ou le serveur n\'a pas accès à Internet.');
+      if (!linked) throw new Error('Linking failed: invalid code, or the server has no Internet access.');
       await telepathService.setProxy(true);
       setFlags(f => ({ ...f, proxy: true }));
       await readFlags();
       await onCfgChanged?.();
     }, 'playit.gg');
-    if (ok) { setCode(''); setProxyLinked(true); Alert.alert('playit.gg', 'Compte lié, proxy activé pour ce serveur.'); }
+    if (ok) { setCode(''); setProxyLinked(true); Alert.alert('playit.gg', 'Account linked, proxy enabled for this server.'); }
   };
 
   const openPlayitPanel = () => run('panel', async () => {
     const url = await telepathService.getPlayitUrl();
-    if (!url) throw new Error("Le panneau playit n'est pas encore disponible.");
+    if (!url) throw new Error('The playit panel is not available yet.');
     await Linking.openURL(String(url));
   }, 'playit.gg');
 
   const unlinkPlayit = () => {
     Alert.alert(
-      'Dissocier playit.gg ?',
-      'Le compte est lié à la machine qui héberge auto-mcs : tous ses serveurs perdront leur adresse playit.',
+      'Unlink playit.gg?',
+      'The account is linked to the machine hosting auto-mcs: all of its servers will lose their playit address.',
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Dissocier', style: 'destructive',
+          text: 'Unlink', style: 'destructive',
           onPress: async () => {
             const ok = await run('unlink', async () => {
               const done = await telepathService.unlinkPlayit();
-              if (!done) throw new Error('Impossible de dissocier le compte.');
+              if (!done) throw new Error('Could not unlink the account.');
               await readFlags();
               await onCfgChanged?.();
             }, 'playit.gg');
@@ -239,20 +239,20 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
 
   // ── Geyser (Bedrock) ──
   const toggleGeyser = v => {
-    if (!requireStopped('modifier Geyser')) return;
+    if (!requireStopped('change Geyser')) return;
     Alert.alert(
-      v ? 'Activer le support Bedrock ?' : 'Désactiver le support Bedrock ?',
+      v ? 'Enable Bedrock support?' : 'Disable Bedrock support?',
       v
-        ? 'Geyser, Floodgate et ViaVersion seront téléchargés sur le serveur. Cela peut prendre quelques minutes.'
-        : 'Geyser, Floodgate et ViaVersion seront retirés du serveur.',
+        ? 'Geyser, Floodgate and ViaVersion will be downloaded to the server. This can take a few minutes.'
+        : 'Geyser, Floodgate and ViaVersion will be removed from the server.',
       [
-        { text: 'Annuler', style: 'cancel' },
+        { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Continuer',
+          text: 'Continue',
           onPress: () => run('geyser', async () => {
             await telepathService.installGeyser(v);
             await setConfigValue('enableGeyser', v);
-            await telepathService.reloadConfig();   // recalcule geyser_enabled côté serveur
+            await telepathService.reloadConfig();   // recomputes geyser_enabled on the server
             setFlags(f => ({ ...f, geyser: v }));
             await readFlags();
             await onCfgChanged?.();
@@ -262,37 +262,37 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
     );
   };
 
-  // ── Renommer ──
+  // ── Rename ──
   const renameServer = async () => {
     const name = newName.trim();
-    if (!requireStopped('renommer le serveur')) return;
+    if (!requireStopped('rename the server')) return;
     if (!name || name === serverName) return;
     if (INVALID_NAME.test(name) || /[. ]$/.test(name)) {
-      Alert.alert('Nom invalide', 'Évite les caractères \\ / : * ? " < > | et un point ou espace à la fin.');
+      Alert.alert('Invalid name', 'Avoid the characters \\ / : * ? " < > | and a trailing dot or space.');
       return;
     }
     const ok = await run('rename', async () => {
       const list = await telepathService.getServerList();
       const taken = (Array.isArray(list) ? list : []).some(s => String(s?.name || '').toLowerCase() === name.toLowerCase());
-      if (taken) throw new Error('Un serveur porte déjà ce nom.');
+      if (taken) throw new Error('A server with this name already exists.');
       await telepathService.renameServer(name);
-    }, 'Renommer');
+    }, 'Rename');
     if (ok) {
-      Alert.alert('Serveur renommé', `« ${serverName} » s'appelle maintenant « ${name} ».`);
+      Alert.alert('Server renamed', `"${serverName}" is now called "${name}".`);
       navigation.popToTop();
     }
   };
 
-  // ── Supprimer ──
+  // ── Delete ──
   const deleteServer = async () => {
-    if (!requireStopped('supprimer le serveur')) return;
+    if (!requireStopped('delete the server')) return;
     if (confirmName !== serverName) return;
     const ok = await run('delete', async () => {
       const done = await telepathService.deleteServer();
-      if (done === false) throw new Error("La suppression a échoué (serveur encore en cours d'exécution ?).");
-    }, 'Supprimer');
+      if (done === false) throw new Error('Deletion failed (is the server still running?).');
+    }, 'Delete');
     if (ok) {
-      Alert.alert('Serveur supprimé', `« ${serverName} » a été supprimé.`);
+      Alert.alert('Server deleted', `"${serverName}" was deleted.`);
       navigation.popToTop();
     }
   };
@@ -301,67 +301,67 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
 
   return (
     <View>
-      <Section title="Démarrage" />
+      <Section title="Startup" />
       <ToggleRow
-        label="Démarrer avec auto-mcs"
-        hint="Lance ce serveur automatiquement au démarrage d'auto-mcs (auto-mcs 1.3+)"
+        label="Start with auto-mcs"
+        hint="Starts this server automatically when auto-mcs starts (auto-mcs 1.3+)"
         value={autostartOn}
         onChange={toggleAutostart}
         loading={busy === 'autostart'}
         disabled={!!busy}
       />
 
-      <Section title="playit.gg (accès depuis Internet)" />
+      <Section title="playit.gg (access from the Internet)" />
       {proxyLinked === null ? (
         <ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />
       ) : proxyLinked === 'error' ? (
         <View style={styles.card}>
           <Text style={styles.cardText}>
-            Impossible de vérifier playit.gg sur ce serveur (pas de réponse). Réessaie dans un instant.
+            Could not check playit.gg on this server (no response). Try again in a moment.
           </Text>
-          <Button label="Réessayer" onPress={() => { setProxyLinked(null); refreshState(); }} />
+          <Button label="Retry" onPress={() => { setProxyLinked(null); refreshState(); }} />
         </View>
       ) : proxyLinked ? (
         <View>
           <ToggleRow
-            label="Activer le proxy playit"
-            hint="Donne une adresse publique à ce serveur, sans ouvrir de port"
+            label="Enable playit proxy"
+            hint="Gives this server a public address, without opening a port"
             value={proxyOn}
             onChange={toggleProxy}
             loading={busy === 'proxy'}
             disabled={!!busy}
           />
-          <Button label="Ouvrir le panneau playit" onPress={openPlayitPanel} loading={busy === 'panel'} disabled={!!busy} />
-          <Button label="Dissocier le compte playit" onPress={unlinkPlayit} loading={busy === 'unlink'} disabled={!!busy} danger />
+          <Button label="Open the playit panel" onPress={openPlayitPanel} loading={busy === 'panel'} disabled={!!busy} />
+          <Button label="Unlink the playit account" onPress={unlinkPlayit} loading={busy === 'unlink'} disabled={!!busy} danger />
         </View>
       ) : (
         <View style={styles.card}>
           <Text style={styles.cardText}>
-            playit.gg n'est pas encore configuré. 1) Ouvre le site et crée ou connecte ton compte,
-            2) copie le code affiché, 3) colle-le ici puis autorise.
+            playit.gg is not set up yet. 1) Open the site and create or sign in to your account,
+            2) copy the code shown, 3) paste it here, then authorize.
           </Text>
-          <Button label="1 · Ouvrir playit.gg" onPress={() => Linking.openURL(PLAYIT_SETUP_URL)} disabled={!!busy} />
+          <Button label="1 · Open playit.gg" onPress={() => Linking.openURL(PLAYIT_SETUP_URL)} disabled={!!busy} />
           <TextInput
             style={styles.input}
             value={code}
             onChangeText={setCode}
-            placeholder="Colle le code ici…"
+            placeholder="Paste the code here…"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
           />
-          <Button label="3 · Autoriser" onPress={linkPlayit} loading={busy === 'link'} disabled={!!busy || !code.trim()} />
-          <Text style={styles.hint}>L'installation de l'agent playit sur le serveur peut prendre une minute.</Text>
+          <Button label="3 · Authorize" onPress={linkPlayit} loading={busy === 'link'} disabled={!!busy || !code.trim()} />
+          <Text style={styles.hint}>Installing the playit agent on the server can take a minute.</Text>
         </View>
       )}
 
       <Section title="Bedrock (Geyser)" />
       <ToggleRow
-        label="Support Bedrock"
+        label="Bedrock support"
         hint={
-          loadingState ? 'Chargement…'
-          : geyserSupported ? 'Installe Geyser, Floodgate et ViaVersion. Serveur arrêté requis.'
-          : `Indisponible pour ${type || 'ce type'} ${version}`.trim()
+          loadingState ? 'Loading…'
+          : geyserSupported ? 'Installs Geyser, Floodgate and ViaVersion. Server must be stopped.'
+          : `Unavailable for ${type || 'this type'} ${version}`.trim()
         }
         value={geyserOn}
         onChange={toggleGeyser}
@@ -369,7 +369,7 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
         disabled={!!busy || !geyserSupported}
       />
 
-      <Section title="Renommer" />
+      <Section title="Rename" />
       <View style={styles.card}>
         <TextInput
           style={styles.input}
@@ -380,42 +380,42 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
           autoCorrect={false}
         />
         <Button
-          label="Renommer le serveur"
+          label="Rename the server"
           onPress={renameServer}
           loading={busy === 'rename'}
           disabled={!!busy || !newName.trim() || newName.trim() === serverName}
         />
-        {running ? <Text style={styles.hint}>Le serveur doit être arrêté.</Text> : null}
+        {running ? <Text style={styles.hint}>The server must be stopped.</Text> : null}
       </View>
 
-      <Section title="Zone dangereuse" />
+      <Section title="Danger zone" />
       {!showDelete ? (
-        <Button label="Supprimer ce serveur…" onPress={() => setShowDelete(true)} disabled={!!busy} danger />
+        <Button label="Delete this server…" onPress={() => setShowDelete(true)} disabled={!!busy} danger />
       ) : (
         <View style={[styles.card, styles.cardDanger]}>
           <Text style={styles.cardText}>
-            Cette action est définitive. auto-mcs tente de sauvegarder le serveur avant de le supprimer
-            (selon l'espace disque). Tape le nom exact du serveur pour confirmer :
+            This action is permanent. auto-mcs tries to back up the server before deleting it
+            (depending on free disk space). Type the exact server name to confirm:
           </Text>
           <Text style={styles.confirmName}>{serverName}</Text>
           <TextInput
             style={styles.input}
             value={confirmName}
             onChangeText={setConfirmName}
-            placeholder="Nom du serveur"
+            placeholder="Server name"
             placeholderTextColor={colors.textMuted}
             autoCapitalize="none"
             autoCorrect={false}
           />
           <Button
-            label="Supprimer définitivement"
+            label="Delete permanently"
             onPress={deleteServer}
             loading={busy === 'delete'}
             disabled={!!busy || confirmName !== serverName}
             danger
           />
-          <Button label="Annuler" onPress={() => { setShowDelete(false); setConfirmName(''); }} disabled={!!busy} />
-          {running ? <Text style={styles.hint}>Le serveur doit être arrêté.</Text> : null}
+          <Button label="Cancel" onPress={() => { setShowDelete(false); setConfirmName(''); }} disabled={!!busy} />
+          {running ? <Text style={styles.hint}>The server must be stopped.</Text> : null}
         </View>
       )}
     </View>

@@ -60,7 +60,7 @@ function AddonRow({ item, isInstalled, onPress, onInstall, onDelete }) {
           <Text style={rowStyles.name} numberOfLines={1}>{item.name}</Text>
           {isInstalled && (
             <View style={rowStyles.installedBadge}>
-              <Text style={rowStyles.installedText}>INSTALLÉ</Text>
+              <Text style={rowStyles.installedText}>INSTALLED</Text>
             </View>
           )}
         </View>
@@ -123,7 +123,7 @@ function InstalledRow({ item, onPress, onToggle, onDelete }) {
       <View style={[instStyles.stripe, { backgroundColor: enabled ? colors.green : colors.textMuted }]} />
       <View style={instStyles.body}>
         <Text style={instStyles.name} numberOfLines={1}>{item.name}</Text>
-        <Text style={instStyles.meta}>{item.author || 'Inconnu'} · v{item.addon_version || '?'}</Text>
+        <Text style={instStyles.meta}>{item.author || 'Unknown'} · v{item.addon_version || '?'}</Text>
       </View>
       <TouchableOpacity style={[instStyles.toggleBtn, enabled && instStyles.toggleBtnOn]} onPress={onToggle}>
         <Text style={[instStyles.toggleText, enabled && instStyles.toggleTextOn]}>
@@ -182,7 +182,7 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
       const data = await telepathService._get('AddonManager/return_single_list');
       setInstalledAddons(Array.isArray(data) ? data : []);
     } catch (e) {
-      console.warn('Erreur chargement addons installés', e);
+      console.warn('Failed to load installed addons', e);
     }
   };
 
@@ -207,22 +207,22 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
   const handleInstallDirect = async (item) => {
     try {
       await telepathService._post('AddonManager/download_addon', { addon: item.id });
-      Alert.alert('Succès', `${item.name} installé !`);
+      Alert.alert('Success', `${item.name} installed!`);
       loadInstalled();
     } catch (e) {
-      Alert.alert('Erreur', `Installation échouée : ${e.message}`);
+      Alert.alert('Error', `Install failed: ${e.message}`);
     }
   };
 
   const handleDeleteDirect = (item) => {
-    Alert.alert('Supprimer', `Supprimer définitivement ${item.name} ?`, [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Supprimer', style: 'destructive', onPress: async () => {
+    Alert.alert('Delete', `Permanently delete ${item.name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
         try {
           await telepathService.deleteAddon(item);
           loadInstalled();
         } catch (e) {
-          Alert.alert('Erreur', e.message);
+          Alert.alert('Error', e.message);
         }
       }},
     ]);
@@ -234,7 +234,7 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
       await telepathService.setAddonState(item, !isEnabled);
       loadInstalled();
     } catch (e) {
-      Alert.alert('Erreur', e.message);
+      Alert.alert('Error', e.message);
     }
   };
 
@@ -251,11 +251,11 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
         headers: { 'Authorization': `Bearer ${telepathService.token}` },
         body: formData,
       });
-      if (!uploadRes.ok) throw new Error(await uploadRes.text() || `Upload échoué (${uploadRes.status})`);
+      if (!uploadRes.ok) throw new Error(await uploadRes.text() || `Upload failed (${uploadRes.status})`);
       const uploadData = await uploadRes.json();
       await telepathService._post('AddonManager/import_addon', { addon_path: uploadData.path });
       await telepathService._get('main/clear_uploads');
-      Alert.alert('Succès', `Mod ${file.name} importé !`);
+      Alert.alert('Success', `Mod ${file.name} imported!`);
       loadInstalled();
     } catch (e) {
       setError(e.message);
@@ -265,9 +265,9 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
   };
 
   const SEGMENTS = [
-    { key: 'search',    label: 'Rechercher' },
-    { key: 'installed', label: 'Installés' },
-    { key: 'import',    label: 'Importer' },
+    { key: 'search',    label: 'Search' },
+    { key: 'installed', label: 'Installed' },
+    { key: 'import',    label: 'Import' },
   ];
 
   return (
@@ -280,7 +280,7 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
           <View style={styles.searchRow}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Nom du mod…"
+              placeholder="Mod name…"
               placeholderTextColor={colors.textMuted}
               value={query}
               onChangeText={setQuery}
@@ -315,7 +315,7 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
                 <View style={styles.empty}>
                   <Text style={styles.emptyIcon}>🔎</Text>
                   <Text style={styles.emptyText}>
-                    {query ? 'Aucun résultat' : 'Recherche un mod par nom'}
+                    {query ? 'No results' : 'Search for a mod by name'}
                   </Text>
                 </View>
               )
@@ -343,7 +343,7 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyIcon}>📦</Text>
-              <Text style={styles.emptyText}>Aucun mod installé</Text>
+              <Text style={styles.emptyText}>No mods installed</Text>
             </View>
           }
         />
@@ -354,12 +354,12 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
         <View style={styles.importCenter}>
           <View style={styles.importBox}>
             <Text style={styles.importIcon}>📂</Text>
-            <Text style={styles.importTitle}>Importer un mod</Text>
-            <Text style={styles.importHint}>Sélectionne un fichier .jar depuis ton appareil</Text>
+            <Text style={styles.importTitle}>Import a mod</Text>
+            <Text style={styles.importHint}>Select a .jar file from your device</Text>
             <TouchableOpacity style={styles.importBtn} onPress={handlePickFile} disabled={loading}>
               {loading
                 ? <ActivityIndicator color={colors.bg} size="small" />
-                : <Text style={styles.importBtnText}>Choisir un fichier</Text>}
+                : <Text style={styles.importBtnText}>Choose a file</Text>}
             </TouchableOpacity>
           </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}

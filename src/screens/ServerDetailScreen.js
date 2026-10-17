@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, memo } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  View, Text, StyleSheet, TouchableOpacity, Pressable, ScrollView,
   TextInput, Platform, Alert, Keyboard, ActivityIndicator, KeyboardAvoidingView
 } from 'react-native';
 import { telepathService } from '../services/telepath';
@@ -62,27 +62,31 @@ const addrStyles = StyleSheet.create({
   },
 });
 
-// Une ligne de console, comme sur le desktop : pastilles heure/type + message
-// coloré par type (les codes §couleur du message gardent leur propre couleur).
+// One console line, like the desktop: time/type pills + message colored by type (color
+// codes inside the message keep their own color). The time is hidden by default; tapping
+// a line shows it in the same spot, tapping again hides it.
 const LogLine = memo(function LogLine({ line }) {
+  const [showTime, setShowTime] = useState(false);
   const base = toCss(line.color);
   const dark = toCss(brighten(line.color, -0.65));
   return (
-    <View style={consoleStyles.logRow}>
-      {line.time ? (
-        <Text style={[consoleStyles.pill, { backgroundColor: toCss(brighten(line.color, -0.2)), color: dark }]}>
-          {line.time}
+    <Pressable onPress={() => line.time && setShowTime(v => !v)}>
+      <View style={consoleStyles.logRow}>
+        {showTime && line.time ? (
+          <Text style={[consoleStyles.pill, { backgroundColor: toCss(brighten(line.color, -0.2)), color: dark }]}>
+            {line.time}
+          </Text>
+        ) : null}
+        <Text style={[consoleStyles.pill, consoleStyles.typePill, { backgroundColor: base, color: dark }]}>
+          {line.type}
         </Text>
-      ) : null}
-      <Text style={[consoleStyles.pill, consoleStyles.typePill, { backgroundColor: base, color: dark }]}>
-        {line.type}
-      </Text>
-      <Text style={[consoleStyles.line, consoleStyles.msg, { color: base }]}>
-        {line.segments.map((seg, i) => (
-          <Text key={i} style={seg.color ? { color: seg.color } : null}>{seg.text}</Text>
-        ))}
-      </Text>
-    </View>
+        <Text style={[consoleStyles.line, consoleStyles.msg, { color: base }]}>
+          {line.segments.map((seg, i) => (
+            <Text key={i} style={seg.color ? { color: seg.color } : null}>{seg.text}</Text>
+          ))}
+        </Text>
+      </View>
+    </Pressable>
   );
 });
 
@@ -95,8 +99,8 @@ function ConsoleTab({ runData }) {
   const logIdRef  = useRef(1);
   const prevSigsRef = useRef([]);
 
-  // Le serveur garde 2000 lignes max et supprime les plus anciennes : on repère
-  // les nouvelles lignes par recoupement avec la fin de ce qui est déjà affiché.
+  // The server keeps at most 2000 lines and drops the oldest ones, so new lines are
+  // found by matching the end of what is already shown against the received list.
   useEffect(() => {
     if (!Array.isArray(runData?.log)) return;
     const cur = runData.log;
@@ -110,7 +114,7 @@ function ConsoleTab({ runData }) {
     });
 
     if (start === -1) {
-      // Journal remis à zéro (serveur relancé…) : on repart de ce que le serveur envoie
+      // Log was reset (server restarted...): start over from what the server sends
       setLocalLogs(toLines(cur).slice(-300));
     } else if (start < cur.length) {
       const fresh = toLines(cur.slice(start));
@@ -230,11 +234,11 @@ function PlayersTab({ runData }) {
     .map(([name]) => name);
 
   const kick = (name) => {
-    Alert.alert(`Kick ${name}`, `Expulser ${name} du serveur ?`, [
-      { text: 'Annuler', style: 'cancel' },
+    Alert.alert(`Kick ${name}`, `Kick ${name} from the server?`, [
+      { text: 'Cancel', style: 'cancel' },
       { text: 'Kick', style: 'destructive', onPress: async () => {
         try { await telepathService.sendCommand(`kick ${name}`); }
-        catch (e) { Alert.alert('Erreur', e.message); }
+        catch (e) { Alert.alert('Error', e.message); }
       }},
     ]);
   };
@@ -243,7 +247,7 @@ function PlayersTab({ runData }) {
     return (
       <View style={tabStyles.empty}>
         <Text style={tabStyles.emptyIcon}>👻</Text>
-        <Text style={tabStyles.emptyTitle}>Aucun joueur connecté</Text>
+        <Text style={tabStyles.emptyTitle}>No players online</Text>
       </View>
     );
   }
@@ -297,8 +301,8 @@ function StatsTab({ runData }) {
     return (
       <View style={tabStyles.empty}>
         <Text style={tabStyles.emptyIcon}>📊</Text>
-        <Text style={tabStyles.emptyTitle}>Stats indisponibles</Text>
-        <Text style={tabStyles.emptyText}>Disponibles uniquement quand le serveur tourne</Text>
+        <Text style={tabStyles.emptyTitle}>Stats unavailable</Text>
+        <Text style={tabStyles.emptyText}>Only available while the server is running</Text>
       </View>
     );
   }
@@ -309,7 +313,7 @@ function StatsTab({ runData }) {
   const items = [
     { label: 'CPU', value: cpu != null ? `${cpu}%` : '--', bar: cpu != null ? cpu / 100 : 0, color: cpu > 80 ? colors.red : cpu > 60 ? colors.yellow : colors.green, icon: '🖥' },
     { label: 'RAM', value: ram != null ? `${ram}%` : '--', bar: ram != null ? ram / 100 : 0, color: colors.accentLight, icon: '💾' },
-    { label: 'Joueurs', value: perf?.player_count ?? (runData?.['player-list'] ? Object.values(runData['player-list']).filter(p => p?.['logged-in']).length : '--'), bar: null, icon: '👥', color: colors.yellow },
+    { label: 'Players', value: perf?.player_count ?? (runData?.['player-list'] ? Object.values(runData['player-list']).filter(p => p?.['logged-in']).length : '--'), bar: null, icon: '👥', color: colors.yellow },
     { label: 'Uptime', value: perf?.uptime || '--', bar: null, color: colors.blue, icon: '⏱' },
   ];
 
@@ -365,7 +369,7 @@ function ControlBar({ running, actionLoading, onAction, network }) {
         <View style={ctrlStyles.statusRow}>
           <View style={[ctrlStyles.dot, { backgroundColor: running ? colors.green : colors.red }]} />
           <Text style={[ctrlStyles.status, { color: running ? colors.green : colors.textSecondary }]}>
-            {running ? 'EN LIGNE' : 'ARRÊTÉ'}
+            {running ? 'ONLINE' : 'STOPPED'}
           </Text>
         </View>
         {running && network && <ServerAddress network={network} />}
@@ -478,9 +482,9 @@ export default function ServerDetailScreen({ route, navigation }) {
 
 
   const handleBackup = async () => {
-    Alert.alert('Sauvegarder', `Créer une sauvegarde de "${serverName}" ?`, [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Sauvegarder', onPress: async () => {
+    Alert.alert('Back up', `Create a backup of "${serverName}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Back up', onPress: async () => {
         setBackupLoading(true);
         setBackupDone(false);
         try {
@@ -488,7 +492,7 @@ export default function ServerDetailScreen({ route, navigation }) {
           setBackupDone(true);
           setTimeout(() => setBackupDone(false), 3000);
         } catch (e) {
-          Alert.alert('Erreur', `Échec de la sauvegarde : ${e.message}`);
+          Alert.alert('Error', `Backup failed: ${e.message}`);
         } finally {
           setBackupLoading(false);
         }
@@ -541,7 +545,7 @@ export default function ServerDetailScreen({ route, navigation }) {
   }, [serverName]);
 
   const TABS = React.useMemo(() => {
-    const base = ['Console', 'Joueurs', 'Stats'];
+    const base = ['Console', 'Players', 'Stats'];
     if (supportsMods) base.push('Mods');
     return base;
   }, [supportsMods]);
@@ -551,9 +555,9 @@ export default function ServerDetailScreen({ route, navigation }) {
   }, [runData]);
 
   const doAction = (action) => {
-    const labels = { launch: 'Démarrer', stop: 'Arrêter', restart: 'Redémarrer' };
-    Alert.alert(labels[action], `${labels[action]} "${serverName}" ?`, [
-      { text: 'Annuler', style: 'cancel' },
+    const labels = { launch: 'Start', stop: 'Stop', restart: 'Restart' };
+    Alert.alert(labels[action], `${labels[action]} "${serverName}"?`, [
+      { text: 'Cancel', style: 'cancel' },
       { text: labels[action], onPress: async () => {
         setActionLoading(action);
         try {
@@ -563,7 +567,7 @@ export default function ServerDetailScreen({ route, navigation }) {
           if (action === 'launch') setRunning(true);
           else if (action === 'stop') setRunning(false);
         } catch (e) {
-          Alert.alert('Erreur', `${action}: ${e.message}`);
+          Alert.alert('Error', `${action}: ${e.message}`);
         } finally {
           setActionLoading(null);
         }
@@ -579,10 +583,10 @@ export default function ServerDetailScreen({ route, navigation }) {
     return (
       <View style={styles.centered}>
         <Text style={{ fontSize: 40 }}>⚠️</Text>
-        <Text style={styles.errorTitle}>Impossible d'ouvrir le serveur</Text>
+        <Text style={styles.errorTitle}>Could not open the server</Text>
         <Text style={styles.errorText}>{openError}</Text>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtnText}>← Retour</Text>
+          <Text style={styles.backBtnText}>← Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -592,7 +596,7 @@ export default function ServerDetailScreen({ route, navigation }) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator color={colors.accent} size="large" />
-        <Text style={styles.loadingText}>Ouverture du serveur…</Text>
+        <Text style={styles.loadingText}>Opening server…</Text>
       </View>
     );
   }

@@ -1,21 +1,21 @@
-// Création d'un serveur via Telepath, avec les mêmes appels et le même ordre que le
+// Server creation through Telepath, with the same calls in the same order as the
 // desktop (views/server/create.py → CreateServerProgressScreen, foundry.pre_server_create) :
 //
 //   main/check_free_space → create/push_new_server → create/pre_server_create
 //   → main/java_check → create/download_jar → [create/install_server]
 //   → create/generate_server_files → create/create_backup → create/post_server_create
 //
-// Le serveur garde l'état de la création en mémoire (foundry.new_server_info) entre ces
-// appels : ils doivent donc se suivre, un seul serveur créé à la fois.
+// The server keeps the creation state in memory (foundry.new_server_info) between these
+// calls: they must therefore follow each other, and only one server can be created at a time.
 //
-// Limites de cette première version : pas d'addons à la création (Fabric API, Geyser,
-// désactivation du chat reporting) ni de monde importé. Geyser s'active ensuite depuis
-// les paramètres du serveur, les mods depuis l'onglet Mods.
+// Limits of this first version: no addons at creation time (Fabric API, Geyser,
+// disabling chat reporting) and no imported world. Geyser is enabled afterwards from
+// the server settings, mods from the Mods tab.
 
-// Types qui nécessitent l'étape d'installation (installeur Forge/NeoForge/Fabric/Quilt)
+// Types that need the install step (Forge/NeoForge/Fabric/Quilt installer)
 export const NEEDS_INSTALL = ['forge', 'neoforge', 'fabric', 'quilt'];
 
-// Valeurs par défaut du desktop (foundry.new_server_init)
+// Desktop defaults (foundry.new_server_init)
 export const DEFAULT_SETTINGS = {
   world: 'world',
   seed: '',
@@ -31,7 +31,7 @@ export const DEFAULT_SETTINGS = {
   daylight_weather_cycle: true,
   command_blocks: false,
   random_tick_speed: '3',
-  // Pas d'addons à la création : on n'annonce donc pas ces options au serveur
+  // No addons at creation time, so these options are not announced to the server
   geyser_support: false,
   disable_chat_reporting: false,
   enable_proxy: false,
@@ -39,9 +39,9 @@ export const DEFAULT_SETTINGS = {
 
 const randomHash = () => Math.random().toString(36).slice(2, 10).padEnd(8, '0');
 
-// Dictionnaire envoyé à create/push_new_server. Il remplace tout new_server_info côté
-// serveur : il doit donc contenir toutes les clés attendues par main (1.2.2) ET par
-// ui-fixes (1.3.x) — `addon_objects` (liste) pour l'un, `addon_object` pour l'autre.
+// Dictionary sent to create/push_new_server. It replaces the whole new_server_info on the
+// server: it must therefore contain every key expected by main (1.2.2) AND by
+// ui-fixes (1.3.x) — `addon_objects` (list) for one, `addon_object` for the other.
 export function buildServerInfo({ name, type, version, port = '25565', ip = '', settings = {} }) {
   return {
     _hash: randomHash(),
@@ -49,15 +49,15 @@ export function buildServerInfo({ name, type, version, port = '25565', ip = '', 
     name: String(name).trim(),
     type,
     version: String(version).trim(),
-    build: '',        // résolus par le serveur (search_version) dans download_jar
+    build: '',        // resolved by the server (search_version) in download_jar
     jar_link: '',
     ip,
     port: String(port),
     server_settings: { ...DEFAULT_SETTINGS, ...settings },
     addon_objects: [],
     addon_object: null,
-    // Ne doit PAS être null : generate_server_files appelle acl_object.count_rules() et
-    // lit sa liste blanche. Un dict non vide fait construire un AclManager vide au serveur.
+    // Must NOT be null: generate_server_files calls acl_object.count_rules() and
+    // reads its whitelist. A non-empty dict makes the server build an empty AclManager.
     acl_object: { rules: {} },
   };
 }
@@ -66,27 +66,27 @@ const TYPE_LABEL = { forge: 'Forge', neoforge: 'NeoForge', fabric: 'Fabric', qui
 
 export function buildSteps(type) {
   const steps = [
-    { id: 'space',   label: "Vérification de l'espace disque" },
-    { id: 'push',    label: 'Préparation' },
-    { id: 'pre',     label: 'Initialisation' },
-    { id: 'java',    label: 'Vérification de Java' },
-    { id: 'jar',     label: "Téléchargement de 'server.jar'" },
+    { id: 'space',   label: 'Checking disk space' },
+    { id: 'push',    label: 'Preparing' },
+    { id: 'pre',     label: 'Initializing' },
+    { id: 'java',    label: 'Checking Java' },
+    { id: 'jar',     label: "Downloading 'server.jar'" },
   ];
-  if (NEEDS_INSTALL.includes(type)) steps.push({ id: 'install', label: `Installation de ${TYPE_LABEL[type]}` });
+  if (NEEDS_INSTALL.includes(type)) steps.push({ id: 'install', label: `Installing ${TYPE_LABEL[type]}` });
   steps.push(
-    { id: 'files',   label: 'Configuration du serveur' },
-    { id: 'backup',  label: 'Sauvegarde initiale' },
-    { id: 'post',    label: 'Finalisation' },
+    { id: 'files',   label: 'Configuring the server' },
+    { id: 'backup',  label: 'Initial backup' },
+    { id: 'post',    label: 'Finalizing' },
   );
   return steps;
 }
 
-// Délais (ms) : le serveur ne répond qu'une fois l'étape terminée
+// Timeouts (ms): the server only answers once the step is finished
 const MIN = 60 * 1000;
 const TIMEOUTS = { push: 30000, pre: 5 * MIN, java: 20 * MIN, jar: 20 * MIN, install: 20 * MIN, files: 10 * MIN, backup: 10 * MIN, post: 5 * MIN };
 
-// Exécute la création. `service` = telepathService (checkFreeSpace + createCall).
-// `onStep(index, status)` avec status = 'running' | 'done' | 'error'.
+// Runs the creation. `service` = telepathService (checkFreeSpace + createCall).
+// `onStep(index, status)` with status = 'running' | 'done' | 'error'.
 export async function createServer(service, { name, type, version, port, settings }, onStep = () => {}) {
   const steps = buildSteps(type);
   const serverInfo = buildServerInfo({ name, type, version, port, settings });
@@ -94,7 +94,7 @@ export async function createServer(service, { name, type, version, port, setting
   const run = {
     space: async () => {
       if ((await service.checkFreeSpace()) === false) {
-        throw new Error("Espace disque insuffisant sur la machine qui héberge auto-mcs.");
+        throw new Error('Not enough free disk space on the machine hosting auto-mcs.');
       }
     },
     push: () => service.createCall('create/push_new_server',
@@ -103,21 +103,21 @@ export async function createServer(service, { name, type, version, port, setting
     java: async () => {
       const ok = await service.createCall('main/java_check',
         { server_version: serverInfo.version, server_type: type }, TIMEOUTS.java);
-      if (ok === false) throw new Error("Java n'a pas pu être installé ou vérifié.");
+      if (ok === false) throw new Error('Java could not be installed or verified.');
     },
     jar: async () => {
       const ok = await service.createCall('create/download_jar', { imported: false }, TIMEOUTS.jar);
       if (ok === false) {
-        throw new Error("Impossible de télécharger 'server.jar' : version introuvable pour ce type, ou le serveur n'a pas accès à Internet.");
+        throw new Error("Could not download 'server.jar': version not found for this type, or the server has no Internet access.");
       }
     },
     install: async () => {
       const ok = await service.createCall('create/install_server', { imported: false }, TIMEOUTS.install);
-      if (ok === false) throw new Error("L'installation du serveur a échoué.");
+      if (ok === false) throw new Error('The server installation failed.');
     },
     files: async () => {
       const ok = await service.createCall('create/generate_server_files', {}, TIMEOUTS.files);
-      if (ok === false) throw new Error('La génération des fichiers du serveur a échoué.');
+      if (ok === false) throw new Error('Generating the server files failed.');
     },
     backup: () => service.createCall('create/create_backup', { import_server: false }, TIMEOUTS.backup),
     post: () => service.createCall('create/post_server_create', { telepath: true }, TIMEOUTS.post),

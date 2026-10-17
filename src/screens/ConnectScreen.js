@@ -159,7 +159,7 @@ export default function ConnectScreen({ navigation }) {
   }, []);
 
   const handleConnect = async () => {
-    if (!host.trim()) { setError('Adresse IP requise'); return; }
+    if (!host.trim()) { setError('IP address is required'); return; }
     setLoading(true); setError('');
     telepathService.host = host.trim();
     telepathService.port = parseInt(port) || 7001;
@@ -174,7 +174,7 @@ export default function ConnectScreen({ navigation }) {
   };
 
   const handleSubmitCode = async () => {
-    if (pairCode.replace('-', '').length < 6) { setError('Code à 6 caractères requis'); return; }
+    if (pairCode.replace('-', '').length < 6) { setError('A 6-character code is required'); return; }
     setLoading(true); setError('');
     const rawCode = pairCode.replace('-', '');
     try {
@@ -182,7 +182,7 @@ export default function ConnectScreen({ navigation }) {
       if (result?.['access-token']) {
         navigation.replace('Servers');
       } else {
-        setError('Code invalide ou expiré. Recommence depuis le début.');
+        setError('Invalid or expired code. Start over from the beginning.');
         setStep('connect');
       }
     } catch (e) {
@@ -219,11 +219,11 @@ export default function ConnectScreen({ navigation }) {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={styles.cardHeaderAccent} />
-              <Text style={styles.cardTitle}>CONNEXION</Text>
+              <Text style={styles.cardTitle}>CONNECTION</Text>
             </View>
 
             <InputField
-              label="Adresse IP"
+              label="IP address"
               icon="🌐"
               placeholder="192.168.1.100"
               value={host}
@@ -232,7 +232,7 @@ export default function ConnectScreen({ navigation }) {
               keyboardType="default"
             />
             <InputField
-              label="Port Telepath"
+              label="Telepath port"
               icon="🔌"
               placeholder="7001"
               value={port}
@@ -242,7 +242,7 @@ export default function ConnectScreen({ navigation }) {
 
             <ErrorBanner message={error} />
             <PrimaryButton
-              label="Se connecter →"
+              label="Connect →"
               onPress={handleConnect}
               loading={loading}
               disabled={loading}
@@ -259,16 +259,16 @@ export default function ConnectScreen({ navigation }) {
             </View>
             <View style={styles.pairingCenter}>
               <ActivityIndicator color={colors.accent} size="large" style={{ marginBottom: spacing.md }} />
-              <Text style={styles.pairingLabel}>Demande en cours…</Text>
+              <Text style={styles.pairingLabel}>Request in progress…</Text>
             </View>
             <View style={styles.hintBox}>
-              <Text style={styles.hintTitle}>Comment faire</Text>
+              <Text style={styles.hintTitle}>How to pair</Text>
               <Text style={styles.hintText}>
-                Dans auto-mcs, ouvre{' '}
+                In auto-mcs, open{' '}
                 <Text style={styles.mono}>Settings → Telepath</Text>
-                {' '}et active{' '}
+                {' '}and enable{' '}
                 <Text style={styles.mono}>Share this instance</Text>.
-                {'\n'}Un code à 6 caractères apparaîtra.
+                {'\n'}A 6-character code will appear.
               </Text>
             </View>
           </View>
@@ -279,10 +279,10 @@ export default function ConnectScreen({ navigation }) {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={styles.cardHeaderAccent} />
-              <Text style={styles.cardTitle}>CODE DE PAIRING</Text>
+              <Text style={styles.cardTitle}>PAIRING CODE</Text>
             </View>
 
-            <Text style={styles.codeHint}>Entre le code affiché dans auto-mcs</Text>
+            <Text style={styles.codeHint}>Enter the code shown in auto-mcs</Text>
 
             <TextInput
               style={styles.codeInput}
@@ -303,13 +303,13 @@ export default function ConnectScreen({ navigation }) {
 
             <ErrorBanner message={error} />
             <PrimaryButton
-              label="Valider le code →"
+              label="Confirm code →"
               onPress={handleSubmitCode}
               loading={loading}
               disabled={loading}
             />
             <TouchableOpacity onPress={() => { setStep('connect'); setError(''); setPairCode(''); }} style={styles.backLink}>
-              <Text style={styles.backLinkText}>← Recommencer</Text>
+              <Text style={styles.backLinkText}>← Start over</Text>
             </TouchableOpacity>
           </View>
         )}

@@ -1,6 +1,6 @@
-// Création d'un serveur depuis le téléphone, comme l'assistant du desktop :
-// nom, type, version (liste récupérée sur Internet par le téléphone), options de jeu,
-// puis exécution des étapes sur la machine qui héberge auto-mcs.
+// Creating a server from the phone, like the desktop wizard:
+// name, type, version (list fetched from the Internet by the phone), game options,
+// then running the steps on the machine hosting auto-mcs.
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Switch, TextInput, TouchableOpacity,
@@ -14,26 +14,26 @@ import { createServer, buildSteps, DEFAULT_SETTINGS } from '../services/createSe
 const INVALID_NAME = /[\\/:*?"<>|]/;
 
 const GAMEMODES = [
-  { label: 'Survie', value: 'survival' },
-  { label: 'Créatif', value: 'creative' },
-  { label: 'Aventure', value: 'adventure' },
+  { label: 'Survival', value: 'survival' },
+  { label: 'Creative', value: 'creative' },
+  { label: 'Adventure', value: 'adventure' },
 ];
 const DIFFICULTIES = [
-  { label: 'Pacifique', value: 'peaceful' },
-  { label: 'Facile', value: 'easy' },
+  { label: 'Peaceful', value: 'peaceful' },
+  { label: 'Easy', value: 'easy' },
   { label: 'Normal', value: 'normal' },
-  { label: 'Difficile', value: 'hard' },
+  { label: 'Hard', value: 'hard' },
   { label: 'Hardcore', value: 'hardcore' },
 ];
 const LEVEL_TYPES = [
   { label: 'Normal', value: 'default' },
   { label: 'Superflat', value: 'flat' },
-  { label: 'Grands biomes', value: 'large_biomes' },
-  { label: 'Amplifié', value: 'amplified' },
+  { label: 'Large biomes', value: 'large_biomes' },
+  { label: 'Amplified', value: 'amplified' },
 ];
 
-// Types de monde disponibles selon la version (comme le desktop : < 1.3.1 normal seulement,
-// < 1.7.2 normal ou superflat)
+// World types available depending on the version (like the desktop: < 1.3.1 normal only,
+// < 1.7.2 normal or superflat)
 function levelTypesFor(version) {
   if (!version) return LEVEL_TYPES;
   if (compareVersions(version, '1.3.1') < 0) return LEVEL_TYPES.slice(0, 1);
@@ -110,7 +110,7 @@ export default function CreateServerScreen({ route, navigation }) {
 
   // Listes de versions par type (cache)
   const cacheRef = useRef({});
-  const [versions, setVersions] = useState(null);     // null = chargement, [] = indisponible
+  const [versions, setVersions] = useState(null);     // null = loading, [] = unavailable
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const [phase, setPhase]     = useState('form');      // form | creating | error
@@ -122,7 +122,7 @@ export default function CreateServerScreen({ route, navigation }) {
   const effectiveVersion = version.trim() || latest;
   const steps = useMemo(() => buildSteps(type), [type]);
 
-  // Charge la liste de versions du type choisi (en arrière-plan, sans bloquer le formulaire)
+  // Loads the version list of the chosen type (in the background, without blocking the form)
   useEffect(() => {
     let cancelled = false;
     if (cacheRef.current[type]) { setVersions(cacheRef.current[type]); return undefined; }
@@ -135,7 +135,7 @@ export default function CreateServerScreen({ route, navigation }) {
 
   const changeType = t => { setType(t); setVersion(''); };
 
-  // Pas de retour en arrière pendant la création : elle continue côté serveur
+  // No going back during creation: it keeps running on the server
   useEffect(() => {
     navigation.setOptions({ headerLeft: phase === 'creating' ? () => null : undefined, gestureEnabled: phase !== 'creating' });
     if (phase !== 'creating') return undefined;
@@ -145,20 +145,20 @@ export default function CreateServerScreen({ route, navigation }) {
 
   const validate = () => {
     const n = name.trim();
-    if (!n) return 'Donne un nom au serveur.';
-    if (INVALID_NAME.test(n) || /[. ]$/.test(n)) return 'Le nom contient un caractère interdit (\\ / : * ? " < > |) ou finit par un point ou un espace.';
-    if (existingNames.some(e => String(e).toLowerCase() === n.toLowerCase())) return 'Un serveur porte déjà ce nom.';
-    if (!effectiveVersion) return 'Indique une version (la liste est indisponible).';
+    if (!n) return 'Give the server a name.';
+    if (INVALID_NAME.test(n) || /[. ]$/.test(n)) return 'The name contains a forbidden character (\\ / : * ? " < > |) or ends with a dot or a space.';
+    if (existingNames.some(e => String(e).toLowerCase() === n.toLowerCase())) return 'A server with this name already exists.';
+    if (!effectiveVersion) return 'Enter a version (the list is unavailable).';
     const p = parseInt(port, 10);
-    if (!(p >= 1 && p <= 65535)) return 'Le port doit être compris entre 1 et 65535.';
-    if (!(parseInt(settings.max_players, 10) >= 1)) return 'Le nombre de joueurs max doit être au moins 1.';
-    if (!(parseInt(settings.random_tick_speed, 10) >= 0)) return 'La vitesse des ticks aléatoires doit être positive ou nulle.';
+    if (!(p >= 1 && p <= 65535)) return 'The port must be between 1 and 65535.';
+    if (!(parseInt(settings.max_players, 10) >= 1)) return 'Max players must be at least 1.';
+    if (!(parseInt(settings.random_tick_speed, 10) >= 0)) return 'Random tick speed must be zero or positive.';
     return null;
   };
 
   const start = async () => {
     const problem = validate();
-    if (problem) { Alert.alert('Vérifie le formulaire', problem); return; }
+    if (problem) { Alert.alert('Check the form', problem); return; }
 
     const run = async () => {
       setFailure('');
@@ -170,33 +170,33 @@ export default function CreateServerScreen({ route, navigation }) {
           name, type, version: effectiveVersion, port,
           settings: { ...settings, level_type: levelOk ? settings.level_type : 'default' },
         }, (i, status) => setStepStates(prev => prev.map((s, k) => (k === i ? status : s))));
-        Alert.alert('Serveur créé', `« ${name.trim()} » est prêt.`);
+        Alert.alert('Server created', `"${name.trim()}" is ready.`);
         navigation.popToTop();
       } catch (e) {
-        setFailure(`${e.step ? `Étape « ${e.step.label} » : ` : ''}${e.message}`);
+        setFailure(`${e.step ? `Step "${e.step.label}": ` : ''}${e.message}`);
         setPhase('error');
       }
     };
 
-    // Version absente de la liste : le desktop la refuse, ici on laisse tenter
+    // Version missing from the list: the desktop refuses it, here we let the user try
     if (versions && versions.length && !versions.includes(effectiveVersion)) {
       Alert.alert(
-        'Version introuvable',
-        `${effectiveVersion} n'apparaît pas dans la liste ${type}. Essayer quand même ?`,
-        [{ text: 'Annuler', style: 'cancel' }, { text: 'Essayer', onPress: run }],
+        'Version not found',
+        `${effectiveVersion} does not appear in the ${type} list. Try anyway?`,
+        [{ text: 'Cancel', style: 'cancel' }, { text: 'Try anyway', onPress: run }],
       );
       return;
     }
     run();
   };
 
-  // ── Création en cours / échec ──
+  // ── Creation in progress / failure ──
   if (phase !== 'form') {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={styles.title}>{phase === 'error' ? 'La création a échoué' : `Création de « ${name.trim()} »…`}</Text>
+        <Text style={styles.title}>{phase === 'error' ? 'Creation failed' : `Creating "${name.trim()}"…`}</Text>
         {phase === 'creating' ? (
-          <Text style={styles.hint}>Garde l'app ouverte : certaines étapes (Java, téléchargement, installation) peuvent durer plusieurs minutes.</Text>
+          <Text style={styles.hint}>Keep the app open: some steps (Java, download, installation) can take several minutes.</Text>
         ) : null}
 
         <View style={styles.card}>
@@ -219,12 +219,12 @@ export default function CreateServerScreen({ route, navigation }) {
         {phase === 'error' ? (
           <View>
             <Text style={styles.error}>{failure}</Text>
-            <Text style={styles.hint}>Un serveur a pu être créé partiellement : vérifie la liste des serveurs avant de réessayer.</Text>
+            <Text style={styles.hint}>A server may have been partially created: check the server list before trying again.</Text>
             <TouchableOpacity style={styles.btn} onPress={() => setPhase('form')}>
-              <Text style={styles.btnText}>Modifier et réessayer</Text>
+              <Text style={styles.btnText}>Edit and retry</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={() => navigation.popToTop()}>
-              <Text style={styles.btnGhostText}>Retour à la liste</Text>
+              <Text style={styles.btnGhostText}>Back to the list</Text>
             </TouchableOpacity>
           </View>
         ) : null}
@@ -235,24 +235,24 @@ export default function CreateServerScreen({ route, navigation }) {
   // ── Formulaire ──
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Section title="Serveur" />
-      <Field label="Nom">
-        <TextBox value={name} onChangeText={setName} placeholder="Mon serveur" />
+      <Section title="Server" />
+      <Field label="Name">
+        <TextBox value={name} onChangeText={setName} placeholder="My server" />
       </Field>
 
       <Field label="Type">
         <Chips items={SERVER_TYPES.map(t => ({ label: t.label, value: t.id }))} value={type} onChange={changeType} />
         {type === 'fabric' || type === 'quilt' ? (
-          <Text style={styles.hint}>Fabric API n'est pas installé automatiquement : ajoute-le ensuite depuis l'onglet Mods.</Text>
+          <Text style={styles.hint}>Fabric API is not installed automatically: add it afterwards from the Mods tab.</Text>
         ) : null}
       </Field>
 
       <Field
         label="Version"
         hint={
-          versions === null ? 'Recherche des versions sur Internet…'
-          : versions.length ? `Vide = dernière version (${latest}).`
-          : 'Liste indisponible : saisis la version à la main (ex. 1.21.4).'
+          versions === null ? 'Looking up versions on the Internet…'
+          : versions.length ? `Empty = latest version (${latest}).`
+          : 'List unavailable: type the version by hand (e.g. 1.21.4).'
         }
       >
         <View style={styles.versionRow}>
@@ -268,41 +268,41 @@ export default function CreateServerScreen({ route, navigation }) {
             disabled={!(versions && versions.length)}
             onPress={() => setPickerOpen(true)}
           >
-            <Text style={styles.pickBtnText}>Liste</Text>
+            <Text style={styles.pickBtnText}>List</Text>
           </TouchableOpacity>
         </View>
       </Field>
 
-      <Section title="Jeu" />
-      <Field label="Mode de jeu"><Chips items={GAMEMODES} value={settings.gamemode} onChange={v => setting('gamemode', v)} /></Field>
-      <Field label="Difficulté"><Chips items={DIFFICULTIES} value={settings.difficulty} onChange={v => setting('difficulty', v)} /></Field>
-      <Field label="Type de monde">
+      <Section title="Game" />
+      <Field label="Game mode"><Chips items={GAMEMODES} value={settings.gamemode} onChange={v => setting('gamemode', v)} /></Field>
+      <Field label="Difficulty"><Chips items={DIFFICULTIES} value={settings.difficulty} onChange={v => setting('difficulty', v)} /></Field>
+      <Field label="World type">
         <Chips items={levelTypesFor(effectiveVersion)} value={settings.level_type} onChange={v => setting('level_type', v)} />
       </Field>
-      <Field label="Graine (optionnel)"><TextBox value={settings.seed} onChangeText={v => setting('seed', v)} placeholder="aléatoire" autoCapitalize="none" /></Field>
-      <Field label="Message du jour"><TextBox value={settings.motd} onChangeText={v => setting('motd', v)} /></Field>
-      <Field label="Joueurs max"><TextBox value={settings.max_players} onChangeText={v => setting('max_players', v.replace(/\D/g, ''))} keyboardType="number-pad" /></Field>
+      <Field label="Seed (optional)"><TextBox value={settings.seed} onChangeText={v => setting('seed', v)} placeholder="random" autoCapitalize="none" /></Field>
+      <Field label="Message of the day"><TextBox value={settings.motd} onChangeText={v => setting('motd', v)} /></Field>
+      <Field label="Max players"><TextBox value={settings.max_players} onChangeText={v => setting('max_players', v.replace(/\D/g, ''))} keyboardType="number-pad" /></Field>
       <Field label="Port"><TextBox value={port} onChangeText={v => setPort(v.replace(/\D/g, ''))} keyboardType="number-pad" /></Field>
 
-      <ToggleRow label="Combat entre joueurs (PvP)" value={settings.pvp} onChange={v => setting('pvp', v)} />
-      <ToggleRow label="Apparition des créatures" value={settings.spawn_creatures} onChange={v => setting('spawn_creatures', v)} />
-      <ToggleRow label="Protection du spawn" value={settings.spawn_protection} onChange={v => setting('spawn_protection', v)} />
-      <ToggleRow label="Blocs de commande" value={settings.command_blocks} onChange={v => setting('command_blocks', v)} />
-      <ToggleRow label="Garder l'inventaire" value={settings.keep_inventory} onChange={v => setting('keep_inventory', v)} />
-      <ToggleRow label="Cycle jour/météo" value={settings.daylight_weather_cycle} onChange={v => setting('daylight_weather_cycle', v)} />
-      <Field label="Vitesse des ticks aléatoires">
+      <ToggleRow label="Player vs player (PvP)" value={settings.pvp} onChange={v => setting('pvp', v)} />
+      <ToggleRow label="Mob spawning" value={settings.spawn_creatures} onChange={v => setting('spawn_creatures', v)} />
+      <ToggleRow label="Spawn protection" value={settings.spawn_protection} onChange={v => setting('spawn_protection', v)} />
+      <ToggleRow label="Command blocks" value={settings.command_blocks} onChange={v => setting('command_blocks', v)} />
+      <ToggleRow label="Keep inventory" value={settings.keep_inventory} onChange={v => setting('keep_inventory', v)} />
+      <ToggleRow label="Daylight/weather cycle" value={settings.daylight_weather_cycle} onChange={v => setting('daylight_weather_cycle', v)} />
+      <Field label="Random tick speed">
         <TextBox value={settings.random_tick_speed} onChangeText={v => setting('random_tick_speed', v.replace(/\D/g, ''))} keyboardType="number-pad" />
       </Field>
 
       <TouchableOpacity style={[styles.btn, { marginTop: spacing.xl }]} onPress={start} activeOpacity={0.8}>
-        <Text style={styles.btnText}>Créer le serveur</Text>
+        <Text style={styles.btnText}>Create server</Text>
       </TouchableOpacity>
-      <Text style={styles.hint}>Geyser (Bedrock), playit.gg et les mods se configurent ensuite depuis le serveur.</Text>
+      <Text style={styles.hint}>Geyser (Bedrock), playit.gg and mods are configured afterwards from the server.</Text>
 
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setPickerOpen(false)}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Versions {type}</Text>
+            <Text style={styles.modalTitle}>{type} versions</Text>
             <FlatList
               data={versions || []}
               keyExtractor={v => v}
@@ -313,7 +313,7 @@ export default function CreateServerScreen({ route, navigation }) {
                   onPress={() => { setVersion(item === latest ? '' : item); setPickerOpen(false); }}
                 >
                   <Text style={[styles.modalItemText, item === effectiveVersion && { color: colors.accent, fontWeight: '700' }]}>
-                    {item}{item === latest ? '  (dernière)' : ''}
+                    {item}{item === latest ? '  (latest)' : ''}
                   </Text>
                 </TouchableOpacity>
               )}
