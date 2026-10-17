@@ -7,6 +7,7 @@ import {
   Alert, ActivityIndicator, Linking,
 } from 'react-native';
 import { telepathService } from '../services/telepath';
+import { fetchFreshConfig } from '../utils/config';
 import { colors, spacing, radius } from '../theme';
 
 // URL ouverte par le desktop pour obtenir le code (playit.manager.setup_url)
@@ -84,6 +85,8 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
   const [type, setType]             = useState('');
   const [version, setVersion]       = useState('');
   const [proxyLinked, setProxyLinked] = useState(null);
+  // État réel des interrupteurs, lu sur le serveur (null = inconnu / non pris en charge)
+  const [flags, setFlags]           = useState({ proxy: null, geyser: null, autostart: null });
   const [busy, setBusy]             = useState('');
   const [code, setCode]             = useState('');
   const [newName, setNewName]       = useState('');
@@ -91,17 +94,35 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
   const [showDelete, setShowDelete] = useState(false);
 
   const g = cfg?.general || {};
-  const proxyOn  = isTrue(g.enableproxy);
-  const geyserOn = isTrue(g.enablegeyser);
-  const autostartOn = isTrue(g.autostart);
+  // Source de vérité : attributs du serveur (proxy_enabled, geyser_enabled, autostart), ceux
+  // qu'il utilise au lancement. Repli sur le .ini, dont les clés respectent la casse exacte.
+  const proxyOn     = flags.proxy     ?? isTrue(g.enableProxy);
+  const geyserOn    = flags.geyser    ?? isTrue(g.enableGeyser);
+  const autostartOn = flags.autostart ?? isTrue(g.autostart);
   const geyserSupported =
     GEYSER_TYPES.includes(String(type).toLowerCase()) && versionAtLeast(version, '1.13.2');
 
   // Associe notre appareil à ce serveur avant toute action (comme le fait l'app desktop)
   const ensureOpen = useCallback(() => telepathService.openServer(serverName), [serverName]);
 
+  // Relit les attributs de chaque interrupteur ; garde l'ancienne valeur si la lecture échoue
+  // (ex. `autostart` n'existe pas avant auto-mcs 1.3).
+  const readFlags = useCallback(async () => {
+    const [p, ge, a] = await Promise.allSettled([
+      telepathService.getServerAttr('proxy_enabled'),
+      telepathService.getServerAttr('geyser_enabled'),
+      telepathService.getServerAttr('autostart'),
+    ]);
+    setFlags(prev => ({
+      proxy:     p.status  === 'fulfilled' ? isTrue(p.value)  : prev.proxy,
+      geyser:    ge.status === 'fulfilled' ? isTrue(ge.value) : prev.geyser,
+      autostart: a.status  === 'fulfilled' ? isTrue(a.value)  : prev.autostart,
+    }));
+  }, []);
+
   const refreshState = useCallback(async () => {
     try { await ensureOpen(); } catch {}
+    readFlags();
     const [r, t, v, p] = await Promise.allSettled([
       telepathService.getServerAttr('running'),
       telepathService.getServerAttr('type'),
@@ -112,7 +133,7 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
     if (t.status === 'fulfilled') setType(String(t.value || ''));
     if (v.status === 'fulfilled') setVersion(String(v.value || ''));
     setProxyLinked(p.status === 'fulfilled' ? !!p.value : 'error');
-  }, [ensureOpen]);
+  }, [ensureOpen, readFlags]);
 
   useEffect(() => { refreshState(); }, [refreshState]);
 
@@ -140,7 +161,7 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
   // pour ne jamais écraser un réglage modifié entre-temps.
   const setConfigValue = async (key, value) => {
     const [cf, sp] = await Promise.all([
-      telepathService.getServerAttr('config_file'),
+      fetchFreshConfig(telepathService),
       telepathService.getServerAttr('server_properties'),
     ]);
     const next = { ...cf, general: { ...(cf?.general || {}), [key]: String(value) } };
@@ -160,12 +181,16 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
   // ── Démarrage automatique ──
   const toggleAutostart = v => run('autostart', async () => {
     await telepathService.setAutostart(v);
+    setFlags(f => ({ ...f, autostart: v }));
+    await readFlags();
     await onCfgChanged?.();
   });
 
   // ── playit.gg ──
   const toggleProxy = v => run('proxy', async () => {
     await telepathService.setProxy(v);
+    setFlags(f => ({ ...f, proxy: v }));
+    await readFlags();
     await onCfgChanged?.();
     if (running) Alert.alert('Redémarrage nécessaire', 'Redémarre le serveur pour appliquer ce changement.');
   });
@@ -177,6 +202,8 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
       const linked = await telepathService.linkPlayit(c);
       if (!linked) throw new Error('Échec de la liaison : code invalide, ou le serveur n\'a pas accès à Internet.');
       await telepathService.setProxy(true);
+      setFlags(f => ({ ...f, proxy: true }));
+      await readFlags();
       await onCfgChanged?.();
     }, 'playit.gg');
     if (ok) { setCode(''); setProxyLinked(true); Alert.alert('playit.gg', 'Compte lié, proxy activé pour ce serveur.'); }
@@ -200,6 +227,7 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
             const ok = await run('unlink', async () => {
               const done = await telepathService.unlinkPlayit();
               if (!done) throw new Error('Impossible de dissocier le compte.');
+              await readFlags();
               await onCfgChanged?.();
             }, 'playit.gg');
             if (ok) setProxyLinked(false);
@@ -223,8 +251,10 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
           text: 'Continuer',
           onPress: () => run('geyser', async () => {
             await telepathService.installGeyser(v);
-            await setConfigValue('enablegeyser', v);
+            await setConfigValue('enableGeyser', v);
             await telepathService.reloadConfig();   // recalcule geyser_enabled côté serveur
+            setFlags(f => ({ ...f, geyser: v }));
+            await readFlags();
             await onCfgChanged?.();
           }, 'Geyser'),
         },

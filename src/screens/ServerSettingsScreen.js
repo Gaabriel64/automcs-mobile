@@ -8,6 +8,7 @@ import { colors, spacing, radius, fonts } from '../theme';
 import Slider from '@react-native-community/slider';
 import { useFocusEffect } from '@react-navigation/native';
 import ServerManagement from '../components/ServerManagement';
+import { cleanConfig, fetchFreshConfig } from '../utils/config';
 
 // ── RAM Slider ────────────────────────────────────────────────────────────────
 function RamSlider({ value, onSave }) {
@@ -225,7 +226,7 @@ export default function ServerSettingsScreen({ route, navigation }) {
   const reloadCfg = useCallback(async () => {
     try {
       const cf = await telepathService._post('ServerObject/_sync_attr', { name: 'config_file' });
-      if (cf) setCfg(cf);
+      if (cf) setCfg(cleanConfig(cf));
     } catch {}
   }, []);
 
@@ -233,8 +234,11 @@ export default function ServerSettingsScreen({ route, navigation }) {
     const newProps = { ...props, [key]: value };
     setProps(newProps);
     try {
+      // Config relue juste avant d'écrire : write_config remplace tout le fichier, une copie
+      // gardée depuis le chargement annulerait les changements faits entre-temps.
+      const fresh = await fetchFreshConfig(telepathService).catch(() => cleanConfig(cfg));
       await telepathService._post('ServerObject/write_config', {
-        remote_data: { config_file: cfg, server_properties: newProps },
+        remote_data: { config_file: fresh, server_properties: newProps },
       });
     } catch (e) {
       Alert.alert('Erreur', `${key}: ${e.message}`);
@@ -245,29 +249,29 @@ export default function ServerSettingsScreen({ route, navigation }) {
   const saveRam = useCallback(async (value) => {
     try {
       await telepathService._post('ServerObject/set_ram_limit', { value });
-      setCfg(prev => ({ ...prev, general: { ...(prev?.general || {}), allocatedmemory: value } }));
+      await reloadCfg();
     } catch (e) {
       Alert.alert('Erreur RAM', e.message);
     }
-  }, []);
+  }, [reloadCfg]);
 
   const saveAutoUpdate = useCallback(async (enabled) => {
     try {
       await telepathService._post('ServerObject/enable_auto_update', { enabled });
-      setCfg(prev => ({ ...prev, general: { ...(prev?.general || {}), updateauto: String(enabled) } }));
+      await reloadCfg();
     } catch (e) {
       Alert.alert('Erreur', e.message);
     }
-  }, []);
+  }, [reloadCfg]);
 
   const saveFlags = useCallback(async (flags) => {
     try {
       await telepathService._post('ServerObject/update_flags', { flags });
-      setCfg(prev => ({ ...prev, general: { ...(prev?.general || {}), customflags: flags } }));
+      await reloadCfg();
     } catch (e) {
       Alert.alert('Erreur', e.message);
     }
-  }, []);
+  }, [reloadCfg]);
 
   if (loading) {
     return (
@@ -324,23 +328,22 @@ export default function ServerSettingsScreen({ route, navigation }) {
       <SwitchRow label="Whitelist" value={isBool(props?.['white-list'])} onSave={v => saveProp('white-list', v)} />
 
       <SectionHeader title="auto-mcs" />
-      <RamSlider value={g?.allocatedmemory ?? g?.allocatedMemory ?? ''} onSave={saveRam} />
-      <SwitchRow label="Mise à jour auto" value={isNotFalse(g?.updateauto ?? g?.updateAuto)} onSave={saveAutoUpdate} />
-      <InputRow label="Flags Java" value={g?.customflags ?? g?.customFlags ?? ''} onSave={saveFlags} placeholder="-Xmx2G -Xms2G" />
+      <RamSlider value={g?.allocatedMemory ?? g?.allocatedmemory ?? ''} onSave={saveRam} />
+      <SwitchRow label="Mise à jour auto" value={isNotFalse(g?.updateAuto ?? g?.updateauto)} onSave={saveAutoUpdate} />
+      <InputRow label="Flags Java" value={g?.customFlags ?? g?.customflags ?? ''} onSave={saveFlags} placeholder="-Xmx2G -Xms2G" />
       <InputRow
         label="Sauvegardes max"
         value={cfg?.bkup?.bkupMax ?? cfg?.general?.maxbackups ?? '5'}
         onSave={async (v) => {
-          const newBkup = { ...(cfg?.bkup || {}), bkupMax: v };
-          const newCfg = { ...cfg, bkup: newBkup };
-          setCfg(newCfg);
           try {
+            const fresh = await fetchFreshConfig(telepathService);
+            const newCfg = { ...fresh, bkup: { ...(fresh?.bkup || {}), bkupMax: v } };
             await telepathService._post('ServerObject/write_config', {
               remote_data: { config_file: newCfg, server_properties: props },
             });
+            setCfg(newCfg);
           } catch (e) {
             Alert.alert('Erreur', e.message);
-            setCfg(cfg);
           }
         }}
         keyboardType="number-pad"
