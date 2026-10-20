@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Linking, Alert, ActivityIndicator, ScrollView
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Linking,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
+import { Text, Icon, Button } from '../components/ui';
 import { telepathService } from '../services/telepath';
-import { colors, spacing, radius, fonts } from '../theme';
+import { colors, spacing, radius } from '../theme';
 
 export default function ModDetailScreen({ route, navigation }) {
   const { modItem, serverName, serverType, isInstalled, addonEnabled } = route.params;
@@ -106,6 +113,12 @@ export default function ModDetailScreen({ route, navigation }) {
           <View style={styles.headerText}>
             <Text style={styles.name}>{displayItem.name}</Text>
             <Text style={styles.author}>by {displayItem.author || 'Unknown'}</Text>
+            {isInstalled ? (
+              <View style={styles.statePill}>
+                <View style={[styles.stateDot, { backgroundColor: enabledState ? colors.green : colors.textMuted }]} />
+                <Text style={styles.stateText}>{enabledState ? 'Installed · enabled' : 'Installed · disabled'}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -113,17 +126,17 @@ export default function ModDetailScreen({ route, navigation }) {
         {displayItem.versions && (
           isSupported ? (
             <View style={[styles.compatBanner, styles.compatOk]}>
-              <Text style={styles.compatIcon}>✓</Text>
-              <View>
-                <Text style={[styles.compatTitle, { color: colors.green }]}>COMPATIBLE</Text>
-                <Text style={styles.compatSub}>Supporte Minecraft {serverVersion}</Text>
+              <Icon name="checkmark-circle" size={26} color={colors.green} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.compatTitle, { color: colors.green }]}>Compatible</Text>
+                <Text style={styles.compatSub}>Supports Minecraft {serverVersion}</Text>
               </View>
             </View>
           ) : (
             <View style={[styles.compatBanner, styles.compatWarn]}>
-              <Text style={styles.compatIcon}>!</Text>
+              <Icon name="alert-circle" size={26} color={colors.orange} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.compatTitle, { color: colors.orange }]}>COMPATIBILITY UNKNOWN</Text>
+                <Text style={[styles.compatTitle, { color: colors.orange }]}>Compatibility unknown</Text>
                 <Text style={styles.compatSub} numberOfLines={2}>
                   Supported versions: {displayItem.versions.join(', ')}
                 </Text>
@@ -135,7 +148,7 @@ export default function ModDetailScreen({ route, navigation }) {
         {/* ── Description ── */}
         {(displayItem.subtitle || displayItem.description) && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>ABOUT</Text>
+            <Text style={styles.sectionTitle}>About</Text>
             <Text style={styles.description}>
               {displayItem.subtitle || displayItem.description}
             </Text>
@@ -144,8 +157,9 @@ export default function ModDetailScreen({ route, navigation }) {
 
         {/* ── Modrinth link ── */}
         {displayItem.url && (
-          <TouchableOpacity style={styles.linkBtn} onPress={() => Linking.openURL(displayItem.url)}>
-            <Text style={styles.linkBtnText}>↗ View on Modrinth</Text>
+          <TouchableOpacity style={styles.linkBtn} onPress={() => Linking.openURL(displayItem.url)} activeOpacity={0.75}>
+            <Icon name="open-outline" size={18} color={colors.accent} />
+            <Text style={styles.linkBtnText}>View on Modrinth</Text>
           </TouchableOpacity>
         )}
 
@@ -154,38 +168,33 @@ export default function ModDetailScreen({ route, navigation }) {
 
       {/* ── Bottom action area ── */}
       <View style={styles.actions}>
-        {isInstalled && (
-          <TouchableOpacity
-            style={[styles.toggleBtn, enabledState ? styles.toggleBtnOn : styles.toggleBtnOff, installing && styles.actionDisabled]}
-            onPress={handleToggle}
-            disabled={installing}
-          >
-            {installing
-              ? <ActivityIndicator color={colors.accent} size="small" />
-              : <Text style={styles.toggleBtnText}>{enabledState ? '⏸ Disable' : '▶ Enable'}</Text>}
-          </TouchableOpacity>
-        )}
-
         {isInstalled ? (
-          <TouchableOpacity
-            style={[styles.deleteBtn, installing && styles.actionDisabled]}
-            onPress={handleDelete}
-            disabled={installing}
-          >
-            {installing
-              ? <ActivityIndicator color={colors.red} size="small" />
-              : <Text style={styles.deleteBtnText}>🗑  Delete</Text>}
-          </TouchableOpacity>
+          <>
+            <Button
+              style={styles.actionBtn}
+              variant="secondary"
+              icon={enabledState ? 'pause' : 'play'}
+              label={enabledState ? 'Disable' : 'Enable'}
+              onPress={handleToggle}
+              loading={installing}
+            />
+            <Button
+              style={styles.actionBtn}
+              variant="danger"
+              icon="trash-outline"
+              label="Delete"
+              onPress={handleDelete}
+              loading={installing}
+            />
+          </>
         ) : (
-          <TouchableOpacity
-            style={[styles.installBtn, installing && styles.actionDisabled]}
+          <Button
+            style={styles.actionBtn}
+            icon="download-outline"
+            label="Install"
             onPress={handleInstall}
-            disabled={installing}
-          >
-            {installing
-              ? <ActivityIndicator color={colors.bg} size="small" />
-              : <Text style={styles.installBtnText}>📦  Install</Text>}
-          </TouchableOpacity>
+            loading={installing}
+          />
         )}
       </View>
     </View>
@@ -199,101 +208,48 @@ const styles = StyleSheet.create({
   scroll: { padding: spacing.lg },
 
   // Header
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg },
   modIcon: {
-    width: 56, height: 56, borderRadius: radius.md,
-    backgroundColor: colors.accentDim,
-    borderWidth: 1, borderColor: colors.borderAccent,
-    alignItems: 'center', justifyContent: 'center',
+    width: 64, height: 64, borderRadius: radius.lg,
+    backgroundColor: colors.accentDim, alignItems: 'center', justifyContent: 'center',
   },
-  modIconText: { fontSize: 26, fontWeight: '800', color: colors.accent },
-  headerText: { flex: 1 },
-  name: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, marginBottom: 2 },
-  author: { fontSize: 12, color: colors.textSecondary },
+  modIconText: { fontSize: 28, fontWeight: '800', color: colors.accent },
+  headerText: { flex: 1, gap: 2 },
+  name: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
+  author: { fontSize: 14, color: colors.textSecondary },
+  statePill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  stateDot: { width: 8, height: 8, borderRadius: 4 },
+  stateText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
 
-  // Compat banner
+  // Compatibility
   compatBanner: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    borderWidth: 1, borderRadius: radius.sm,
-    padding: spacing.md, marginBottom: spacing.lg,
+    borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md, borderWidth: 1,
   },
-  compatOk: {
-    backgroundColor: 'rgba(76,175,135,0.08)',
-    borderColor: 'rgba(76,175,135,0.35)',
-  },
-  compatWarn: {
-    backgroundColor: 'rgba(255,152,0,0.08)',
-    borderColor: 'rgba(255,152,0,0.35)',
-  },
-  compatIcon: {
-    width: 28, height: 28, borderRadius: 14,
-    textAlign: 'center', lineHeight: 28,
-    fontWeight: '800', fontSize: 14,
-    color: colors.bg,
-    backgroundColor: colors.green,
-    overflow: 'hidden',
-  },
-  compatTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  compatSub:   { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  compatOk:   { backgroundColor: 'rgba(56,224,136,0.10)', borderColor: 'rgba(56,224,136,0.35)' },
+  compatWarn: { backgroundColor: 'rgba(255,164,92,0.10)', borderColor: 'rgba(255,164,92,0.35)' },
+  compatTitle: { fontSize: 15, fontWeight: '800' },
+  compatSub: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
 
-  // Section
-  section: { marginBottom: spacing.lg },
-  sectionTitle: {
-    fontSize: 10, fontWeight: '800', letterSpacing: 1.5,
-    color: colors.textSecondary, textTransform: 'uppercase',
-    marginBottom: spacing.sm,
+  // About
+  section: {
+    backgroundColor: colors.bgCard, borderRadius: radius.lg, padding: spacing.md,
+    borderWidth: 1, borderColor: colors.border, marginBottom: spacing.md,
   },
-  description: {
-    fontSize: 14, color: colors.textSecondary, lineHeight: 22,
-  },
+  sectionTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, color: colors.accent, marginBottom: spacing.sm, textTransform: 'uppercase' },
+  description: { fontSize: 15, color: colors.textPrimary, lineHeight: 22 },
 
-  // Link
   linkBtn: {
-    alignSelf: 'flex-start',
-    paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
-    backgroundColor: colors.bgCard,
-    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: spacing.md, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.borderAccent, backgroundColor: colors.accentDim,
   },
-  linkBtnText: { color: colors.accentLight, fontWeight: '600', fontSize: 13 },
+  linkBtnText: { color: colors.accent, fontSize: 15, fontWeight: '700' },
 
   // Actions
   actions: {
-    padding: spacing.md, gap: spacing.sm,
-    borderTopWidth: 1, borderTopColor: colors.border,
-    backgroundColor: colors.bgCard,
+    flexDirection: 'row', gap: spacing.sm, padding: spacing.md,
+    backgroundColor: colors.bgCard, borderTopWidth: 1, borderTopColor: colors.border,
   },
-  toggleBtn: {
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radius.sm, alignItems: 'center',
-    borderWidth: 1,
-  },
-  toggleBtnOn: {
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.accentDim,
-  },
-  toggleBtnOff: {
-    borderColor: colors.border,
-    backgroundColor: colors.bgInput,
-  },
-  toggleBtnText: { color: colors.accent, fontWeight: '700', fontSize: 14 },
-
-  installBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.sm, paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  installBtnText: { color: colors.bg, fontSize: 15, fontWeight: '800' },
-
-  deleteBtn: {
-    borderWidth: 1, borderColor: 'rgba(224,92,92,0.4)',
-    backgroundColor: 'rgba(224,92,92,0.08)',
-    borderRadius: radius.sm, paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  deleteBtnText: { color: colors.red, fontSize: 15, fontWeight: '700' },
-
-  actionDisabled: { opacity: 0.4 },
+  actionBtn: { flex: 1 },
 });

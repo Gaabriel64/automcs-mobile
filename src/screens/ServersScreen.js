@@ -1,51 +1,41 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Alert
+  View,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { telepathService } from '../services/telepath';
-import { colors, spacing, radius, fonts } from '../theme';
+import { colors, spacing, radius, fonts, typeColor } from '../theme';
+import { Text, Icon, Button } from '../components/ui';
 
 // ── Server type badge ─────────────────────────────────────────────────────────
-const TYPE_COLORS = {
-  paper:     '#4caf87',
-  spigot:    '#f0b429',
-  fabric:    '#a78bfa',
-  forge:     '#fb923c',
-  neoforge:  '#f97316',
-  quilt:     '#38bdf8',
-  purpur:    '#c084fc',
-  vanilla:   '#6b8299',
-  craftbukkit: '#facc15',
-};
-
 function TypeBadge({ type }) {
   if (!type) return null;
-  const t = type.toLowerCase();
-  const bg = TYPE_COLORS[t] || colors.textMuted;
+  const c = typeColor(type);
   return (
-    <View style={[typeBadgeStyles.badge, { backgroundColor: bg + '22', borderColor: bg + '55' }]}>
-      <Text style={[typeBadgeStyles.text, { color: bg }]}>{type.toUpperCase()}</Text>
+    <View style={[badgeStyles.badge, { backgroundColor: c + '22' }]}>
+      <Text style={[badgeStyles.text, { color: c }]}>{type.toUpperCase()}</Text>
     </View>
   );
 }
 
-const typeBadgeStyles = StyleSheet.create({
-  badge: {
-    borderWidth: 1, borderRadius: radius.xs,
-    paddingHorizontal: 5, paddingVertical: 1,
-  },
-  text: { fontSize: 9, fontWeight: '800', letterSpacing: 0.8 },
+const badgeStyles = StyleSheet.create({
+  badge: { borderRadius: radius.xs, paddingHorizontal: 6, paddingVertical: 2 },
+  text: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
 });
 
 // ── Status indicator ──────────────────────────────────────────────────────────
 function StatusPill({ running }) {
+  const c = running ? colors.green : colors.textMuted;
   return (
-    <View style={[pillStyles.pill, running ? pillStyles.online : pillStyles.offline]}>
-      <View style={[pillStyles.dot, { backgroundColor: running ? colors.green : colors.textMuted }]} />
-      <Text style={[pillStyles.text, { color: running ? colors.green : colors.textMuted }]}>
-        {running ? 'ONLINE' : 'STOPPED'}
+    <View style={[pillStyles.pill, { backgroundColor: running ? 'rgba(56,224,136,0.12)' : 'rgba(111,114,153,0.14)' }]}>
+      <View style={[pillStyles.dot, { backgroundColor: c }]} />
+      <Text style={[pillStyles.text, { color: running ? colors.green : colors.textSecondary }]}>
+        {running ? 'Online' : 'Stopped'}
       </Text>
     </View>
   );
@@ -53,14 +43,11 @@ function StatusPill({ running }) {
 
 const pillStyles = StyleSheet.create({
   pill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: 20, borderWidth: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
   },
-  online:  { backgroundColor: 'rgba(76,175,135,0.1)',  borderColor: 'rgba(76,175,135,0.3)' },
-  offline: { backgroundColor: 'rgba(107,130,153,0.08)', borderColor: 'rgba(107,130,153,0.2)' },
-  dot:  { width: 5, height: 5, borderRadius: 3 },
-  text: { fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  text: { fontSize: 12, fontWeight: '700' },
 });
 
 // ── Server card ───────────────────────────────────────────────────────────────
@@ -71,37 +58,38 @@ function ServerCard({ server, onPress, onToggleFavorite }) {
   const version  = server?.version || '';
   const players  = server?.player_count;
   const favorite = server?.favorite || false;
+  const c = typeColor(type);
 
   return (
-    <TouchableOpacity
-      style={[cardStyles.card, favorite && cardStyles.cardFav]}
-      onPress={() => onPress(server)}
-      activeOpacity={0.85}
-    >
+    <TouchableOpacity style={cardStyles.card} onPress={() => onPress(server)} activeOpacity={0.85}>
+      <View style={[cardStyles.stripe, { backgroundColor: running ? colors.green : 'transparent' }]} />
       <View style={cardStyles.body}>
-        {/* Top row */}
-        <View style={cardStyles.topRow}>
+        <View style={[cardStyles.iconBox, { backgroundColor: c + '22' }]}>
+          <Icon name="cube" size={22} color={c} />
+        </View>
+
+        <View style={cardStyles.info}>
           <Text style={cardStyles.name} numberOfLines={1}>{name}</Text>
+          <View style={cardStyles.meta}>
+            <TypeBadge type={type} />
+            {version ? <Text style={cardStyles.version}>{version}</Text> : null}
+          </View>
+        </View>
+
+        <View style={cardStyles.right}>
           <TouchableOpacity
             onPress={() => onToggleFavorite(server)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Text style={[cardStyles.fav, favorite && cardStyles.favActive]}>
-              {favorite ? '♥' : '♡'}
-            </Text>
+            <Icon name={favorite ? 'heart' : 'heart-outline'} size={20} color={favorite ? colors.pink : colors.textMuted} />
           </TouchableOpacity>
-        </View>
-
-        {/* Bottom row */}
-        <View style={cardStyles.bottomRow}>
-          <View style={cardStyles.meta}>
-            {type ? <TypeBadge type={type} /> : null}
-            {version ? <Text style={cardStyles.version}>{version}</Text> : null}
-          </View>
-          <View style={cardStyles.right}>
-            {running && players != null && (
-              <Text style={cardStyles.players}>👥 {players}</Text>
-            )}
+          <View style={cardStyles.status}>
+            {running && players != null ? (
+              <View style={cardStyles.players}>
+                <Icon name="people" size={13} color={colors.textSecondary} />
+                <Text style={cardStyles.playersText}>{players}</Text>
+              </View>
+            ) : null}
             <StatusPill running={running} />
           </View>
         </View>
@@ -114,89 +102,87 @@ const cardStyles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     backgroundColor: colors.bgCard,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1, borderColor: colors.border,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.sm + 2,
     overflow: 'hidden',
   },
-  cardFav: {
-    borderColor: 'rgba(255,107,157,0.35)',
-    backgroundColor: '#160f1b',
-  },
-  body: { flex: 1, padding: spacing.md },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  name: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, flex: 1, marginRight: spacing.sm },
-  fav:  { fontSize: 20, color: colors.textMuted },
-  favActive: { color: '#ff6b9d' },
-  bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  meta: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  version: { fontSize: 11, color: colors.textMuted },
-  right: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  players: { fontSize: 11, color: colors.textSecondary },
+  stripe: { width: 4 },
+  body: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
+  iconBox: { width: 46, height: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  info: { flex: 1, gap: 6 },
+  name: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  version: { fontSize: 13, color: colors.textSecondary },
+  right: { alignItems: 'flex-end', justifyContent: 'space-between', alignSelf: 'stretch', gap: 8 },
+  status: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  players: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  playersText: { fontSize: 13, color: colors.textSecondary, fontWeight: '600' },
 });
 
 // ── Header ────────────────────────────────────────────────────────────────────
-function ScreenHeader({ host, port, onDisconnect }) {
+function ScreenHeader({ host, port, servers, onDisconnect }) {
+  const online = servers.filter(s => s?.running).length;
   return (
     <View style={headerStyles.wrap}>
-      <View>
-        <Text style={headerStyles.title}>SERVERS</Text>
-        <View style={headerStyles.hostRow}>
-          <View style={headerStyles.hostDot} />
+      <View style={headerStyles.row}>
+        <View style={headerStyles.logo}>
+          <Icon name="cube" size={22} color={colors.onAccent} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={headerStyles.title}>Servers</Text>
           <Text style={headerStyles.host}>{host}:{port}</Text>
         </View>
+        <TouchableOpacity style={headerStyles.btn} onPress={onDisconnect} activeOpacity={0.7}>
+          <Icon name="log-out-outline" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity style={headerStyles.btn} onPress={onDisconnect}>
-        <Text style={headerStyles.btnText}>⏏</Text>
-      </TouchableOpacity>
+      {servers.length > 0 ? (
+        <Text style={headerStyles.summary}>
+          <Text style={{ color: colors.green, fontWeight: '700' }}>{online} online</Text>
+          {`  ·  ${servers.length} total`}
+        </Text>
+      ) : null}
     </View>
   );
 }
 
 const headerStyles = StyleSheet.create({
-  wrap: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.xl + spacing.lg,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+  wrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl + spacing.lg, paddingBottom: spacing.md },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  logo: {
+    width: 44, height: 44, borderRadius: radius.md,
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
   },
-  title: {
-    fontSize: 22, fontWeight: '800', letterSpacing: 2,
-    color: colors.textPrimary,
-  },
-  hostRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
-  hostDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.accent },
-  host: {
-    fontSize: 11, color: colors.accent,
-    fontFamily: fonts.mono,
-    letterSpacing: 0.5,
-  },
+  title: { fontSize: 26, fontWeight: '800', color: colors.textPrimary },
+  host: { fontSize: 13, color: colors.textSecondary, fontFamily: fonts.mono, marginTop: 1 },
   btn: {
-    width: 38, height: 38, borderRadius: radius.sm,
-    backgroundColor: colors.bgInput, borderWidth: 1, borderColor: colors.border,
+    width: 40, height: 40, borderRadius: radius.md,
+    backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border,
     alignItems: 'center', justifyContent: 'center',
   },
-  btnText: { fontSize: 17, color: colors.textSecondary },
+  summary: { marginTop: spacing.md, fontSize: 13, color: colors.textSecondary },
 });
 
 // ── Empty / error states ──────────────────────────────────────────────────────
-function CenteredState({ icon, title, subtitle, action }) {
+function CenteredState({ icon, iconColor = colors.accent, title, subtitle, action }) {
   return (
     <View style={stateStyles.wrap}>
-      <Text style={stateStyles.icon}>{icon}</Text>
+      <View style={[stateStyles.iconWrap, { backgroundColor: iconColor + '22' }]}>
+        <Icon name={icon} size={34} color={iconColor} />
+      </View>
       <Text style={stateStyles.title}>{title}</Text>
-      {subtitle && <Text style={stateStyles.sub}>{subtitle}</Text>}
+      {subtitle ? <Text style={stateStyles.sub}>{subtitle}</Text> : null}
       {action}
     </View>
   );
 }
 
 const stateStyles = StyleSheet.create({
-  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  icon:  { fontSize: 44, marginBottom: spacing.md },
-  title: { color: colors.textPrimary, fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  sub:   { color: colors.textSecondary, fontSize: 13, textAlign: 'center', marginTop: spacing.xs },
+  wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
+  iconWrap: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
+  title: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  sub:   { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
 });
 
 // ── Main screen ───────────────────────────────────────────────────────────────
@@ -256,25 +242,23 @@ export default function ServersScreen({ navigation }) {
       <ScreenHeader
         host={telepathService.host}
         port={telepathService.port}
+        servers={servers}
         onDisconnect={handleDisconnect}
       />
 
       {loading && !refreshing ? (
         <CenteredState
-          icon="⚡"
+          icon="flash"
           title="Loading servers…"
           subtitle={`${telepathService.host}:${telepathService.port}`}
         />
       ) : error ? (
         <CenteredState
-          icon="⚠️"
+          icon="cloud-offline"
+          iconColor={colors.red}
           title="Connection lost"
           subtitle={error}
-          action={
-            <TouchableOpacity style={styles.retryBtn} onPress={() => loadServers()}>
-              <Text style={styles.retryText}>Retry</Text>
-            </TouchableOpacity>
-          }
+          action={<Button label="Retry" icon="refresh" variant="secondary" onPress={() => loadServers()} style={{ marginTop: spacing.md }} />}
         />
       ) : (
         <FlatList
@@ -297,7 +281,7 @@ export default function ServersScreen({ navigation }) {
           }
           ListEmptyComponent={
             <CenteredState
-              icon="📭"
+              icon="file-tray-outline"
               title="No servers"
               subtitle="No servers were found on this instance"
             />
@@ -308,10 +292,10 @@ export default function ServersScreen({ navigation }) {
       {!loading && !error ? (
         <TouchableOpacity
           style={styles.fab}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
           onPress={() => navigation.navigate('CreateServer', { existingNames: servers.map(s => s?.name).filter(Boolean) })}
         >
-          <Text style={styles.fabText}>＋</Text>
+          <Icon name="add" size={32} color={colors.onAccent} />
         </TouchableOpacity>
       ) : null}
     </View>
@@ -322,17 +306,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   fab: {
     position: 'absolute', right: spacing.lg, bottom: spacing.xl,
-    width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.accent, elevation: 6,
-    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
+    width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accent, elevation: 8,
+    shadowColor: colors.accent, shadowOpacity: 0.35, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
   },
-  fabText: { color: colors.bg, fontSize: 28, fontWeight: '700', marginTop: -2 },
-  list: { padding: spacing.md, paddingTop: spacing.sm },
-  retryBtn: {
-    marginTop: spacing.md,
-    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
-    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
-    backgroundColor: colors.bgCard,
-  },
-  retryText: { color: colors.textPrimary, fontSize: 14 },
+  list: { paddingHorizontal: spacing.md, paddingBottom: 100 },
 });

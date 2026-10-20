@@ -1,8 +1,17 @@
 import React, { useState, useRef, useEffect, memo } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Pressable, ScrollView,
-  TextInput, Platform, Alert, Keyboard, ActivityIndicator, KeyboardAvoidingView
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Pressable,
+  ScrollView,
+  Platform,
+  Alert,
+  Keyboard,
+  ActivityIndicator,
+  KeyboardAvoidingView,
 } from 'react-native';
+import { Text, TextInput, Icon } from '../components/ui';
 import { telepathService } from '../services/telepath';
 import { colors, spacing, radius, fonts } from '../theme';
 import ModsTab from './ModsTab';
@@ -45,17 +54,16 @@ function ServerAddress({ network }) {
   const addr = port && String(port) !== '25565' ? `${ip}:${port}` : ip;
   return (
     <View style={addrStyles.row}>
-      <Text style={addrStyles.icon}>🌐</Text>
+      <Icon name="globe-outline" size={14} color={colors.accentLight} />
       <Text style={addrStyles.addr} numberOfLines={1} selectable>{addr}</Text>
     </View>
   );
 }
 
 const addrStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  icon: { fontSize: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   addr: {
-    fontSize: 11,
+    fontSize: 14,
     fontFamily: fonts.mono,
     color: colors.accentLight,
     flexShrink: 1,
@@ -165,26 +173,30 @@ function ConsoleTab({ runData }) {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <View style={consoleStyles.inputRow}>
-          <Text style={consoleStyles.prompt}>/</Text>
-          <TextInput
-            style={consoleStyles.input}
-            placeholder="command…"
-            placeholderTextColor={colors.textMuted}
-            value={cmd}
-            onChangeText={setCmd}
-            onSubmitEditing={sendCommand}
-            returnKeyType="send"
-            autoCapitalize="none"
-            blurOnSubmit={false}
-          />
+          <View style={consoleStyles.inputWrap}>
+            <Text style={consoleStyles.prompt}>/</Text>
+            <TextInput
+              style={consoleStyles.input}
+              placeholder="Type a command…"
+              placeholderTextColor={colors.textMuted}
+              value={cmd}
+              onChangeText={setCmd}
+              onSubmitEditing={sendCommand}
+              returnKeyType="send"
+              autoCapitalize="none"
+              autoCorrect={false}
+              blurOnSubmit={false}
+            />
+          </View>
           <TouchableOpacity
             style={[consoleStyles.sendBtn, (!cmd.trim() || sending) && consoleStyles.sendBtnOff]}
             onPress={sendCommand}
             disabled={!cmd.trim() || sending}
+            activeOpacity={0.8}
           >
             {sending
-              ? <ActivityIndicator color={colors.bg} size="small" />
-              : <Text style={consoleStyles.sendIcon}>↑</Text>}
+              ? <ActivityIndicator color={colors.onAccent} size="small" />
+              : <Icon name="send" size={18} color={cmd.trim() ? colors.onAccent : colors.textMuted} />}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -206,25 +218,41 @@ const consoleStyles = StyleSheet.create({
   typePill: { minWidth: 46, textAlign: 'center' },
   msg: { flex: 1 },
   inputRow: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#0c1520',
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.bgCard,
     borderTopWidth: 1, borderTopColor: colors.border,
-    padding: spacing.sm, gap: spacing.sm,
+    padding: spacing.sm,
   },
-  prompt: { color: colors.accent, fontSize: 18, fontWeight: '800' },
+  inputWrap: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.bgInput, borderRadius: radius.lg,
+    borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, minHeight: 44,
+  },
+  prompt: { color: colors.accent, fontSize: 18, fontWeight: '800', fontFamily: fonts.mono },
   input: {
-    flex: 1, color: colors.textPrimary, fontSize: 13,
-    fontFamily: fonts.mono,
-    paddingVertical: spacing.xs,
+    flex: 1, color: colors.textPrimary, fontSize: 15,
+    fontFamily: fonts.mono, paddingVertical: spacing.sm,
   },
   sendBtn: {
-    width: 34, height: 34, borderRadius: 17,
+    width: 44, height: 44, borderRadius: 22,
     backgroundColor: colors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
-  sendBtnOff: { backgroundColor: colors.bgInput },
-  sendIcon: { color: colors.bg, fontSize: 18, fontWeight: '800' },
+  sendBtnOff: { backgroundColor: colors.bgRaised },
 });
+
+// ── Shared empty state ────────────────────────────────────────────────────────
+function EmptyState({ icon, title, text }) {
+  return (
+    <View style={tabStyles.empty}>
+      <View style={tabStyles.emptyIconWrap}>
+        <Icon name={icon} size={32} color={colors.textMuted} />
+      </View>
+      <Text style={tabStyles.emptyTitle}>{title}</Text>
+      {text ? <Text style={tabStyles.emptyText}>{text}</Text> : null}
+    </View>
+  );
+}
 
 // ── Players tab ───────────────────────────────────────────────────────────────
 function PlayersTab({ runData }) {
@@ -244,24 +272,21 @@ function PlayersTab({ runData }) {
   };
 
   if (players.length === 0) {
-    return (
-      <View style={tabStyles.empty}>
-        <Text style={tabStyles.emptyIcon}>👻</Text>
-        <Text style={tabStyles.emptyTitle}>No players online</Text>
-      </View>
-    );
+    return <EmptyState icon="people-outline" title="No players online" text="Players will show up here when they join" />;
   }
 
   return (
     <ScrollView style={tabStyles.scroll}>
+      <Text style={playerStyles.count}>{players.length} online</Text>
       {players.map((name, i) => (
         <View key={i} style={playerStyles.row}>
           <View style={playerStyles.avatar}>
             <Text style={playerStyles.avatarText}>{name[0].toUpperCase()}</Text>
           </View>
           <Text style={playerStyles.name}>{name}</Text>
-          <TouchableOpacity style={playerStyles.kickBtn} onPress={() => kick(name)}>
-            <Text style={playerStyles.kickText}>KICK</Text>
+          <TouchableOpacity style={playerStyles.kickBtn} onPress={() => kick(name)} activeOpacity={0.7}>
+            <Icon name="exit-outline" size={15} color={colors.red} />
+            <Text style={playerStyles.kickText}>Kick</Text>
           </TouchableOpacity>
         </View>
       ))}
@@ -270,27 +295,26 @@ function PlayersTab({ runData }) {
 }
 
 const playerStyles = StyleSheet.create({
+  count: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.xs },
   row: {
-    flexDirection: 'row', alignItems: 'center',
-    padding: spacing.md,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-    gap: spacing.md,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    backgroundColor: colors.bgCard, borderRadius: radius.md,
+    borderWidth: 1, borderColor: colors.border,
+    marginHorizontal: spacing.md, marginTop: spacing.sm, padding: spacing.md,
   },
   avatar: {
-    width: 36, height: 36, borderRadius: radius.sm,
+    width: 40, height: 40, borderRadius: radius.sm,
     backgroundColor: colors.accentDim,
-    borderWidth: 1, borderColor: colors.borderAccent,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { color: colors.accent, fontWeight: '800', fontSize: 14 },
-  name: { flex: 1, color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
+  avatarText: { color: colors.accent, fontWeight: '800', fontSize: 16 },
+  name: { flex: 1, color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
   kickBtn: {
-    paddingHorizontal: spacing.md, paddingVertical: 5,
-    borderRadius: radius.xs,
-    borderWidth: 1, borderColor: 'rgba(224,92,92,0.4)',
-    backgroundColor: 'rgba(224,92,92,0.08)',
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: spacing.md, paddingVertical: 7,
+    borderRadius: radius.sm, backgroundColor: 'rgba(255,107,143,0.12)',
   },
-  kickText: { color: colors.red, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  kickText: { color: colors.red, fontSize: 13, fontWeight: '700' },
 });
 
 // ── Stats tab ─────────────────────────────────────────────────────────────────
@@ -298,30 +322,26 @@ function StatsTab({ runData }) {
   const perf = runData?.performance || null;
 
   if (!perf) {
-    return (
-      <View style={tabStyles.empty}>
-        <Text style={tabStyles.emptyIcon}>📊</Text>
-        <Text style={tabStyles.emptyTitle}>Stats unavailable</Text>
-        <Text style={tabStyles.emptyText}>Only available while the server is running</Text>
-      </View>
-    );
+    return <EmptyState icon="stats-chart-outline" title="Stats unavailable" text="Only available while the server is running" />;
   }
 
   const cpu = perf?.cpu != null ? Number(perf.cpu).toFixed(1) : null;
   const ram = perf?.ram != null ? Number(perf.ram).toFixed(0) : null;
 
   const items = [
-    { label: 'CPU', value: cpu != null ? `${cpu}%` : '--', bar: cpu != null ? cpu / 100 : 0, color: cpu > 80 ? colors.red : cpu > 60 ? colors.yellow : colors.green, icon: '🖥' },
-    { label: 'RAM', value: ram != null ? `${ram}%` : '--', bar: ram != null ? ram / 100 : 0, color: colors.accentLight, icon: '💾' },
-    { label: 'Players', value: perf?.player_count ?? (runData?.['player-list'] ? Object.values(runData['player-list']).filter(p => p?.['logged-in']).length : '--'), bar: null, icon: '👥', color: colors.yellow },
-    { label: 'Uptime', value: perf?.uptime || '--', bar: null, color: colors.blue, icon: '⏱' },
+    { label: 'CPU', value: cpu != null ? `${cpu}%` : '--', bar: cpu != null ? cpu / 100 : 0, color: cpu > 80 ? colors.red : cpu > 60 ? colors.yellow : colors.green, icon: 'hardware-chip' },
+    { label: 'RAM', value: ram != null ? `${ram}%` : '--', bar: ram != null ? ram / 100 : 0, color: colors.accentLight, icon: 'server' },
+    { label: 'Players', value: perf?.player_count ?? (runData?.['player-list'] ? Object.values(runData['player-list']).filter(p => p?.['logged-in']).length : '--'), bar: null, icon: 'people', color: colors.yellow },
+    { label: 'Uptime', value: perf?.uptime || '--', bar: null, color: colors.blue, icon: 'time' },
   ];
 
   return (
     <ScrollView contentContainerStyle={statStyles.grid}>
       {items.map((item, i) => (
         <View key={i} style={statStyles.card}>
-          <Text style={statStyles.icon}>{item.icon}</Text>
+          <View style={[statStyles.iconWrap, { backgroundColor: item.color + '22' }]}>
+            <Icon name={item.icon} size={22} color={item.color} />
+          </View>
           <Text style={[statStyles.value, { color: item.color }]}>{item.value}</Text>
           <Text style={statStyles.label}>{item.label}</Text>
           {item.bar != null && (
@@ -339,26 +359,28 @@ const statStyles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', padding: spacing.md, gap: spacing.md },
   card: {
     backgroundColor: colors.bgCard,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     borderWidth: 1, borderColor: colors.border,
-    padding: spacing.lg,
-    alignItems: 'center',
-    flex: 1, minWidth: 130,
+    padding: spacing.md,
+    flexBasis: '47%', flexGrow: 1,
   },
-  icon:  { fontSize: 26, marginBottom: spacing.sm },
-  value: { fontSize: 26, fontWeight: '800', marginBottom: spacing.xs },
-  label: { color: colors.textSecondary, fontSize: 11, fontWeight: '700', letterSpacing: 0.8, textTransform: 'uppercase' },
-  barTrack: { width: '100%', height: 3, backgroundColor: colors.border, borderRadius: 2, marginTop: spacing.sm, overflow: 'hidden' },
-  barFill:  { height: '100%', borderRadius: 2 },
+  iconWrap: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
+  value: { fontSize: 28, fontWeight: '800' },
+  label: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginTop: 2 },
+  barTrack: { width: '100%', height: 6, backgroundColor: colors.bgInput, borderRadius: 3, marginTop: spacing.md, overflow: 'hidden' },
+  barFill:  { height: '100%', borderRadius: 3 },
 });
 
 // ── Shared tab styles ─────────────────────────────────────────────────────────
 const tabStyles = StyleSheet.create({
   scroll: { flex: 1 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  emptyIcon:  { fontSize: 44, marginBottom: spacing.md },
-  emptyTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '700' },
-  emptyText:  { color: colors.textSecondary, fontSize: 13, textAlign: 'center', marginTop: spacing.xs },
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.xs },
+  emptyIconWrap: {
+    width: 72, height: 72, borderRadius: 36, backgroundColor: colors.bgCard,
+    alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm,
+  },
+  emptyTitle: { color: colors.textPrimary, fontSize: 17, fontWeight: '700' },
+  emptyText:  { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
 });
 
 // ── Control bar ───────────────────────────────────────────────────────────────
@@ -367,32 +389,33 @@ function ControlBar({ running, actionLoading, onAction, network }) {
     <View style={ctrlStyles.bar}>
       <View style={ctrlStyles.left}>
         <View style={ctrlStyles.statusRow}>
-          <View style={[ctrlStyles.dot, { backgroundColor: running ? colors.green : colors.red }]} />
+          <View style={[ctrlStyles.dot, { backgroundColor: running ? colors.green : colors.textMuted }]} />
           <Text style={[ctrlStyles.status, { color: running ? colors.green : colors.textSecondary }]}>
-            {running ? 'ONLINE' : 'STOPPED'}
+            {running ? 'Online' : 'Stopped'}
           </Text>
         </View>
-        {running && network && <ServerAddress network={network} />}
+        {running && network ? <ServerAddress network={network} /> : null}
       </View>
 
       <View style={ctrlStyles.actions}>
-        {actionLoading
-          ? <ActivityIndicator color={colors.accent} />
-          : running ? (
-            <>
-              <TouchableOpacity style={[ctrlStyles.btn, ctrlStyles.btnSecondary]} onPress={() => onAction('restart')}>
-                <Text style={ctrlStyles.btnText}>↺</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[ctrlStyles.btn, ctrlStyles.btnStop]} onPress={() => onAction('stop')}>
-                <Text style={[ctrlStyles.btnText, { color: colors.red }]}>■ STOP</Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <TouchableOpacity style={[ctrlStyles.btn, ctrlStyles.btnStart]} onPress={() => onAction('launch')}>
-              <Text style={[ctrlStyles.btnText, { color: colors.green }]}>▶ START</Text>
+        {actionLoading ? (
+          <ActivityIndicator color={colors.accent} />
+        ) : running ? (
+          <>
+            <TouchableOpacity style={[ctrlStyles.btn, ctrlStyles.btnSecondary]} onPress={() => onAction('restart')} activeOpacity={0.75}>
+              <Icon name="refresh" size={20} color={colors.textPrimary} />
             </TouchableOpacity>
-          )
-        }
+            <TouchableOpacity style={[ctrlStyles.btn, ctrlStyles.btnStop]} onPress={() => onAction('stop')} activeOpacity={0.75}>
+              <Icon name="stop" size={18} color={colors.red} />
+              <Text style={[ctrlStyles.btnText, { color: colors.red }]}>Stop</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity style={[ctrlStyles.btn, ctrlStyles.btnStart]} onPress={() => onAction('launch')} activeOpacity={0.75}>
+            <Icon name="play" size={18} color={colors.onAccent} />
+            <Text style={[ctrlStyles.btnText, { color: colors.onAccent }]}>Start</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -400,43 +423,41 @@ function ControlBar({ running, actionLoading, onAction, network }) {
 
 const ctrlStyles = StyleSheet.create({
   bar: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-    gap: spacing.sm,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.md,
+    backgroundColor: colors.bgCard,
   },
-  left: { flex: 1 },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  dot:    { width: 7, height: 7, borderRadius: 4 },
-  status: { fontSize: 10, fontWeight: '800', letterSpacing: 1.5 },
+  left: { flex: 1, gap: 3 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  dot:    { width: 9, height: 9, borderRadius: 5 },
+  status: { fontSize: 16, fontWeight: '800' },
   actions: { flexDirection: 'row', gap: spacing.sm },
   btn: {
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, minWidth: 52,
+    flexDirection: 'row', gap: 6, minHeight: 44, minWidth: 48, paddingHorizontal: spacing.md,
+    borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
   },
-  btnStart:    { borderColor: 'rgba(76,175,135,0.4)', backgroundColor: 'rgba(76,175,135,0.08)' },
-  btnStop:     { borderColor: 'rgba(224,92,92,0.4)',  backgroundColor: 'rgba(224,92,92,0.08)' },
-  btnSecondary:{ borderColor: colors.border, backgroundColor: colors.bgInput },
-  btnText: { color: colors.textPrimary, fontWeight: '800', fontSize: 12, letterSpacing: 0.5 },
+  btnStart:    { backgroundColor: colors.accent },
+  btnStop:     { backgroundColor: 'rgba(255,107,143,0.14)', borderWidth: 1, borderColor: 'rgba(255,107,143,0.45)' },
+  btnSecondary:{ backgroundColor: colors.bgRaised },
+  btnText: { fontWeight: '800', fontSize: 15 },
 });
 
 // ── Tab bar ───────────────────────────────────────────────────────────────────
+const TAB_ICONS = { Console: 'terminal', Players: 'people', Stats: 'stats-chart', Mods: 'extension-puzzle' };
+
 function TabBar({ tabs, active, onSelect }) {
   return (
     <View style={tabBarStyles.row}>
-      {tabs.map((tab, i) => (
-        <TouchableOpacity
-          key={i}
-          style={[tabBarStyles.tab, active === i && tabBarStyles.tabActive]}
-          onPress={() => onSelect(i)}
-        >
-          <Text style={[tabBarStyles.text, active === i && tabBarStyles.textActive]}>
-            {tab.toUpperCase()}
-          </Text>
-          {active === i && <View style={tabBarStyles.indicator} />}
-        </TouchableOpacity>
-      ))}
+      {tabs.map((tab, i) => {
+        const on = active === i;
+        return (
+          <TouchableOpacity key={i} style={tabBarStyles.tab} onPress={() => onSelect(i)} activeOpacity={0.7}>
+            <Icon name={TAB_ICONS[tab] || 'ellipse'} size={18} color={on ? colors.accent : colors.textMuted} />
+            <Text style={[tabBarStyles.text, on && tabBarStyles.textActive]}>{tab}</Text>
+            {on ? <View style={tabBarStyles.indicator} /> : null}
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
@@ -448,18 +469,14 @@ const tabBarStyles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   tab: {
-    flex: 1, paddingVertical: spacing.sm + 2,
-    alignItems: 'center', position: 'relative',
+    flex: 1, paddingTop: spacing.sm + 2, paddingBottom: spacing.sm + 4,
+    alignItems: 'center', gap: 3, position: 'relative',
   },
-  tabActive: {},
-  text: {
-    color: colors.textMuted,
-    fontSize: 10, fontWeight: '800', letterSpacing: 1,
-  },
+  text: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   textActive: { color: colors.accent },
   indicator: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    height: 2, backgroundColor: colors.accent,
+    position: 'absolute', bottom: 0, left: '20%', right: '20%',
+    height: 3, backgroundColor: colors.accent, borderTopLeftRadius: 3, borderTopRightRadius: 3,
   },
 });
 
@@ -513,16 +530,16 @@ export default function ServerDetailScreen({ route, navigation }) {
             {backupLoading ? (
               <ActivityIndicator color={colors.accent} size="small" />
             ) : backupDone ? (
-              <Text style={{ fontSize: 20 }}>✅</Text>
+              <Icon name="checkmark-circle" size={24} color={colors.green} />
             ) : (
-              <Text style={{ fontSize: 20 }}>💾</Text>
+              <Icon name="save-outline" size={24} color={colors.textPrimary} />
             )}
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => navigation.navigate('ServerSettings', { serverName })}
             style={{ padding: 8 }}
           >
-            <Text style={{ fontSize: 24 }}>⚙️</Text>
+            <Icon name="settings-outline" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
       ),
@@ -582,7 +599,7 @@ export default function ServerDetailScreen({ route, navigation }) {
   if (openError) {
     return (
       <View style={styles.centered}>
-        <Text style={{ fontSize: 40 }}>⚠️</Text>
+        <Icon name="alert-circle" size={48} color={colors.red} />
         <Text style={styles.errorTitle}>Could not open the server</Text>
         <Text style={styles.errorText}>{openError}</Text>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>

@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Alert
+  View,
+  FlatList,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { Text, Icon, Button } from '../components/ui';
 import { telepathService } from '../services/telepath';
 import { colors, spacing, radius } from '../theme';
 
@@ -65,30 +69,43 @@ export default function BackupListScreen({ route, navigation }) {
     <View style={styles.container}>
       <FlatList
         data={backups}
+        contentContainerStyle={styles.list}
         keyExtractor={(item, index) => item.path || `${item.name}_${item.date || index}`}
         renderItem={({ item }) => (
           <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{item.name || 'Backup'}</Text>
-              <Text style={styles.meta}>
-                {item.date || ''}  ·  {formatSize(item.size)}
-              </Text>
+            <View style={styles.iconBox}>
+              <Icon name="archive" size={22} color={colors.accent} />
             </View>
-            <TouchableOpacity
-              style={styles.restoreBtn}
+            <View style={styles.info}>
+              <Text style={styles.name} numberOfLines={2}>{item.name || 'Backup'}</Text>
+              <View style={styles.metaRow}>
+                <Icon name="time-outline" size={13} color={colors.textMuted} />
+                <Text style={styles.meta}>{item.date || '—'}</Text>
+              </View>
+              <View style={styles.metaRow}>
+                <Icon name="document-outline" size={13} color={colors.textMuted} />
+                <Text style={styles.meta}>{formatSize(item.size)}</Text>
+              </View>
+            </View>
+            <Button
+              compact
+              variant="secondary"
+              icon="refresh"
+              label="Restore"
               onPress={() => handleRestore(item)}
+              loading={restoring === item.name}
               disabled={restoring === item.name}
-            >
-              {restoring === item.name ? (
-                <ActivityIndicator color={colors.accent} size="small" />
-              ) : (
-                <Text style={styles.restoreText}>Restore</Text>
-              )}
-            </TouchableOpacity>
+            />
           </View>
         )}
         ListEmptyComponent={
-          <Text style={styles.empty}>No backups found</Text>
+          <View style={styles.emptyWrap}>
+            <View style={styles.emptyIcon}>
+              <Icon name="archive-outline" size={32} color={colors.textMuted} />
+            </View>
+            <Text style={styles.emptyTitle}>No backups found</Text>
+            <Text style={styles.empty}>Backups of this server will show up here</Text>
+          </View>
         }
       />
     </View>
@@ -96,20 +113,28 @@ export default function BackupListScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, padding: spacing.md },
+  container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
+  list: { padding: spacing.md },
   row: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: spacing.sm, borderBottomWidth: 1,
-    borderBottomColor: colors.border, gap: spacing.sm,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    backgroundColor: colors.bgCard, borderRadius: radius.lg,
+    borderWidth: 1, borderColor: colors.border,
+    padding: spacing.md, marginBottom: spacing.sm,
   },
-  name: { color: colors.textPrimary, fontWeight: '600', fontSize: 14 },
-  meta: { color: colors.textSecondary, fontSize: 11, marginTop: 2 },
-  restoreBtn: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: radius.sm,
+  iconBox: {
+    width: 44, height: 44, borderRadius: radius.md,
+    backgroundColor: colors.accentDim, alignItems: 'center', justifyContent: 'center',
   },
-  restoreText: { color: '#fff', fontWeight: '600', fontSize: 12 },
-  empty: { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xl },
+  info: { flex: 1, gap: 3 },
+  name: { color: colors.textPrimary, fontWeight: '700', fontSize: 14 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  meta: { color: colors.textSecondary, fontSize: 12 },
+  emptyWrap: { alignItems: 'center', marginTop: spacing.xl * 2, gap: spacing.xs },
+  emptyIcon: {
+    width: 72, height: 72, borderRadius: 36, backgroundColor: colors.bgCard,
+    alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm,
+  },
+  emptyTitle: { color: colors.textPrimary, fontSize: 17, fontWeight: '700' },
+  empty: { color: colors.textSecondary, textAlign: 'center', fontSize: 14 },
 });

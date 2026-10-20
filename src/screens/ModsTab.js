@@ -1,80 +1,76 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
-  ActivityIndicator, StyleSheet, Alert
+  View,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+  StyleSheet,
+  Alert,
 } from 'react-native';
+import { Text, TextInput, Icon, Button } from '../components/ui';
 import * as DocumentPicker from 'expo-document-picker';
 import { telepathService } from '../services/telepath';
-import { colors, spacing, radius, fonts } from '../theme';
+import { colors, spacing, radius } from '../theme';
 
 // ── Segment control ───────────────────────────────────────────────────────────
 function SegmentControl({ options, active, onSelect }) {
   return (
     <View style={segStyles.wrap}>
-      {options.map((opt, i) => (
-        <TouchableOpacity
-          key={opt.key}
-          style={[segStyles.seg, active === opt.key && segStyles.segActive]}
-          onPress={() => onSelect(opt.key)}
-        >
-          <Text style={[segStyles.text, active === opt.key && segStyles.textActive]}>
-            {opt.label.toUpperCase()}
-          </Text>
-          {active === opt.key && <View style={segStyles.bar} />}
-        </TouchableOpacity>
-      ))}
+      {options.map((opt) => {
+        const on = active === opt.key;
+        return (
+          <TouchableOpacity
+            key={opt.key}
+            style={[segStyles.seg, on && segStyles.segActive]}
+            onPress={() => onSelect(opt.key)}
+            activeOpacity={0.8}
+          >
+            <Text style={[segStyles.text, on && segStyles.textActive]}>{opt.label}</Text>
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
 
 const segStyles = StyleSheet.create({
   wrap: {
-    flexDirection: 'row',
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-    backgroundColor: colors.bgCard,
+    flexDirection: 'row', gap: 4, margin: spacing.md, marginBottom: spacing.sm,
+    padding: 4, borderRadius: radius.md, backgroundColor: colors.bgInput,
   },
-  seg: {
-    flex: 1, paddingVertical: spacing.sm + 2,
-    alignItems: 'center', position: 'relative',
-  },
-  segActive: {},
-  text: {
-    fontSize: 10, fontWeight: '800', letterSpacing: 1,
-    color: colors.textMuted,
-  },
-  textActive: { color: colors.accent },
-  bar: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    height: 2, backgroundColor: colors.accent,
-  },
+  seg: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.sm },
+  segActive: { backgroundColor: colors.indigo },
+  text: { fontSize: 13, fontWeight: '700', color: colors.textMuted },
+  textActive: { color: colors.textPrimary },
 });
 
 // ── Addon row (search results) ────────────────────────────────────────────────
 function AddonRow({ item, isInstalled, onPress, onInstall, onDelete }) {
   return (
-    <TouchableOpacity style={rowStyles.row} onPress={onPress} activeOpacity={0.8}>
-      {/* Left accent */}
-      <View style={[rowStyles.stripe, { backgroundColor: isInstalled ? colors.accent : colors.border }]} />
+    <TouchableOpacity style={rowStyles.row} onPress={onPress} activeOpacity={0.85}>
+      <View style={[rowStyles.iconBox, isInstalled && { backgroundColor: colors.accentDim }]}>
+        <Icon name="extension-puzzle" size={20} color={isInstalled ? colors.accent : colors.textSecondary} />
+      </View>
       <View style={rowStyles.body}>
         <View style={rowStyles.top}>
           <Text style={rowStyles.name} numberOfLines={1}>{item.name}</Text>
-          {isInstalled && (
+          {isInstalled ? (
             <View style={rowStyles.installedBadge}>
-              <Text style={rowStyles.installedText}>INSTALLED</Text>
+              <Text style={rowStyles.installedText}>Installed</Text>
             </View>
-          )}
+          ) : null}
         </View>
         {item.subtitle || item.description ? (
           <Text style={rowStyles.desc} numberOfLines={2}>{item.subtitle || item.description}</Text>
         ) : null}
       </View>
       {isInstalled ? (
-        <TouchableOpacity style={rowStyles.delBtn} onPress={onDelete}>
-          <Text style={rowStyles.delText}>🗑</Text>
+        <TouchableOpacity style={[rowStyles.actionBtn, rowStyles.delBtn]} onPress={onDelete} activeOpacity={0.7}>
+          <Icon name="trash-outline" size={18} color={colors.red} />
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity style={rowStyles.addBtn} onPress={onInstall}>
-          <Text style={rowStyles.addText}>＋</Text>
+        <TouchableOpacity style={[rowStyles.actionBtn, rowStyles.addBtn]} onPress={onInstall} activeOpacity={0.7}>
+          <Icon name="download-outline" size={18} color={colors.accent} />
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -83,55 +79,44 @@ function AddonRow({ item, isInstalled, onPress, onInstall, onDelete }) {
 
 const rowStyles = StyleSheet.create({
   row: {
-    flexDirection: 'row', alignItems: 'center',
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-    overflow: 'hidden',
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    backgroundColor: colors.bgCard, borderRadius: radius.lg,
+    borderWidth: 1, borderColor: colors.border,
+    marginHorizontal: spacing.md, marginBottom: spacing.sm, padding: spacing.md,
   },
-  stripe: { width: 3, alignSelf: 'stretch' },
-  body: { flex: 1, padding: spacing.md, paddingLeft: spacing.sm },
-  top: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
-  name: { fontSize: 14, fontWeight: '700', color: colors.textPrimary, flex: 1 },
-  installedBadge: {
-    borderWidth: 1, borderColor: colors.borderAccent,
-    borderRadius: radius.xs, paddingHorizontal: 4, paddingVertical: 1,
-  },
-  installedText: { fontSize: 8, fontWeight: '800', color: colors.accent, letterSpacing: 0.8 },
-  desc: { fontSize: 11, color: colors.textSecondary, lineHeight: 16 },
-  addBtn: {
-    width: 32, height: 32, margin: spacing.sm,
-    borderRadius: radius.sm,
-    backgroundColor: colors.accentDim,
-    borderWidth: 1, borderColor: colors.borderAccent,
+  iconBox: {
+    width: 42, height: 42, borderRadius: radius.md, backgroundColor: colors.bgRaised,
     alignItems: 'center', justifyContent: 'center',
   },
-  addText: { color: colors.accent, fontSize: 18, fontWeight: '700' },
-  delBtn: {
-    width: 32, height: 32, margin: spacing.sm,
-    borderRadius: radius.sm,
-    backgroundColor: 'rgba(224,92,92,0.08)',
-    borderWidth: 1, borderColor: 'rgba(224,92,92,0.3)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  delText: { fontSize: 14 },
+  body: { flex: 1, gap: 3 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  name: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, flexShrink: 1 },
+  installedBadge: { backgroundColor: colors.accentDim, borderRadius: radius.xs, paddingHorizontal: 6, paddingVertical: 2 },
+  installedText: { fontSize: 10, fontWeight: '800', color: colors.accent },
+  desc: { fontSize: 12, color: colors.textSecondary, lineHeight: 17 },
+  actionBtn: { width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  addBtn: { backgroundColor: colors.accentDim },
+  delBtn: { backgroundColor: 'rgba(255,107,143,0.12)' },
 });
 
 // ── Installed addon row ───────────────────────────────────────────────────────
 function InstalledRow({ item, onPress, onToggle, onDelete }) {
   const enabled = item.enabled !== false;
   return (
-    <TouchableOpacity style={instStyles.row} onPress={onPress} activeOpacity={0.8}>
-      <View style={[instStyles.stripe, { backgroundColor: enabled ? colors.green : colors.textMuted }]} />
-      <View style={instStyles.body}>
-        <Text style={instStyles.name} numberOfLines={1}>{item.name}</Text>
-        <Text style={instStyles.meta}>{item.author || 'Unknown'} · v{item.addon_version || '?'}</Text>
+    <TouchableOpacity style={instStyles.row} onPress={onPress} activeOpacity={0.85}>
+      <View style={[instStyles.iconBox, { backgroundColor: enabled ? colors.accentDim : colors.bgRaised }]}>
+        <Icon name="extension-puzzle" size={20} color={enabled ? colors.accent : colors.textMuted} />
       </View>
-      <TouchableOpacity style={[instStyles.toggleBtn, enabled && instStyles.toggleBtnOn]} onPress={onToggle}>
-        <Text style={[instStyles.toggleText, enabled && instStyles.toggleTextOn]}>
-          {enabled ? 'ON' : 'OFF'}
-        </Text>
+      <View style={instStyles.body}>
+        <Text style={[instStyles.name, !enabled && { color: colors.textSecondary }]} numberOfLines={1}>{item.name}</Text>
+        <Text style={instStyles.meta} numberOfLines={1}>{item.author || 'Unknown'} · v{item.addon_version || '?'}</Text>
+      </View>
+      <TouchableOpacity style={[instStyles.toggleBtn, enabled && instStyles.toggleBtnOn]} onPress={onToggle} activeOpacity={0.75}>
+        <Icon name={enabled ? 'checkmark-circle' : 'pause-circle-outline'} size={16} color={enabled ? colors.accent : colors.textMuted} />
+        <Text style={[instStyles.toggleText, enabled && instStyles.toggleTextOn]}>{enabled ? 'On' : 'Off'}</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={instStyles.delBtn} onPress={onDelete}>
-        <Text style={instStyles.delText}>🗑</Text>
+      <TouchableOpacity style={instStyles.delBtn} onPress={onDelete} activeOpacity={0.7}>
+        <Icon name="trash-outline" size={18} color={colors.red} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -139,33 +124,27 @@ function InstalledRow({ item, onPress, onToggle, onDelete }) {
 
 const instStyles = StyleSheet.create({
   row: {
-    flexDirection: 'row', alignItems: 'center',
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-    overflow: 'hidden',
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2,
+    backgroundColor: colors.bgCard, borderRadius: radius.lg,
+    borderWidth: 1, borderColor: colors.border,
+    marginHorizontal: spacing.md, marginBottom: spacing.sm, padding: spacing.md,
   },
-  stripe: { width: 3, alignSelf: 'stretch' },
-  body: { flex: 1, padding: spacing.md, paddingLeft: spacing.sm },
-  name: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
-  meta: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
+  iconBox: { width: 42, height: 42, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  body: { flex: 1, gap: 2 },
+  name: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  meta: { fontSize: 12, color: colors.textSecondary },
   toggleBtn: {
-    paddingHorizontal: 10, paddingVertical: 5, marginRight: spacing.sm,
-    borderRadius: radius.xs, borderWidth: 1,
-    borderColor: colors.border, backgroundColor: colors.bgInput,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 7,
+    borderRadius: radius.sm, backgroundColor: colors.bgRaised,
   },
-  toggleBtnOn: {
-    borderColor: colors.borderAccent,
-    backgroundColor: colors.accentDim,
-  },
-  toggleText: { fontSize: 10, fontWeight: '800', letterSpacing: 1, color: colors.textMuted },
+  toggleBtnOn: { backgroundColor: colors.accentDim },
+  toggleText: { fontSize: 12, fontWeight: '800', color: colors.textMuted },
   toggleTextOn: { color: colors.accent },
   delBtn: {
-    width: 36, height: 36, margin: spacing.sm,
-    borderRadius: radius.sm,
-    backgroundColor: 'rgba(224,92,92,0.08)',
-    borderWidth: 1, borderColor: 'rgba(224,92,92,0.3)',
-    alignItems: 'center', justifyContent: 'center',
+    width: 38, height: 38, borderRadius: radius.md,
+    backgroundColor: 'rgba(255,107,143,0.12)', alignItems: 'center', justifyContent: 'center',
   },
-  delText: { fontSize: 14 },
 });
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -288,10 +267,10 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
               returnKeyType="search"
               autoCapitalize="none"
             />
-            <TouchableOpacity style={styles.searchBtn} onPress={handleSearch} disabled={loading}>
+            <TouchableOpacity style={styles.searchBtn} onPress={handleSearch} disabled={loading} activeOpacity={0.8}>
               {loading
-                ? <ActivityIndicator color={colors.bg} size="small" />
-                : <Text style={styles.searchBtnText}>→</Text>}
+                ? <ActivityIndicator color={colors.onAccent} size="small" />
+                : <Icon name="search" size={20} color={colors.onAccent} />}
             </TouchableOpacity>
           </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -313,7 +292,7 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
             ListEmptyComponent={
               !loading && (
                 <View style={styles.empty}>
-                  <Text style={styles.emptyIcon}>🔎</Text>
+                  <View style={styles.emptyIconWrap}><Icon name="search" size={30} color={colors.textMuted} /></View>
                   <Text style={styles.emptyText}>
                     {query ? 'No results' : 'Search for a mod by name'}
                   </Text>
@@ -342,7 +321,7 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>📦</Text>
+              <View style={styles.emptyIconWrap}><Icon name="cube-outline" size={30} color={colors.textMuted} /></View>
               <Text style={styles.emptyText}>No mods installed</Text>
             </View>
           }
@@ -353,14 +332,10 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
       {mode === 'import' && (
         <View style={styles.importCenter}>
           <View style={styles.importBox}>
-            <Text style={styles.importIcon}>📂</Text>
+            <View style={styles.emptyIconWrap}><Icon name="folder-open-outline" size={30} color={colors.accent} /></View>
             <Text style={styles.importTitle}>Import a mod</Text>
             <Text style={styles.importHint}>Select a .jar file from your device</Text>
-            <TouchableOpacity style={styles.importBtn} onPress={handlePickFile} disabled={loading}>
-              {loading
-                ? <ActivityIndicator color={colors.bg} size="small" />
-                : <Text style={styles.importBtnText}>Choose a file</Text>}
-            </TouchableOpacity>
+            <Button label="Choose a file" icon="document-outline" onPress={handlePickFile} loading={loading} disabled={loading} />
           </View>
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
@@ -372,48 +347,37 @@ export default function ModsTab({ serverName, serverType, navigation, refreshKey
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
 
-  searchRow: {
-    flexDirection: 'row', gap: spacing.sm,
-    padding: spacing.sm,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
-  },
+  searchRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
   searchInput: {
     flex: 1, backgroundColor: colors.bgInput,
-    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-    color: colors.textPrimary, fontSize: 14,
-    fontFamily: fonts.mono,
+    borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2,
+    color: colors.textPrimary, fontSize: 15,
   },
   searchBtn: {
-    width: 44, height: 44, borderRadius: radius.sm,
+    width: 46, height: 46, borderRadius: radius.md,
     backgroundColor: colors.accent,
     alignItems: 'center', justifyContent: 'center',
   },
-  searchBtnText: { color: colors.bg, fontSize: 20, fontWeight: '800' },
 
   error: { color: colors.red, textAlign: 'center', padding: spacing.md, fontSize: 13 },
 
-  empty: { alignItems: 'center', padding: spacing.xl * 2 },
-  emptyIcon: { fontSize: 36, marginBottom: spacing.md },
-  emptyText: { color: colors.textSecondary, fontSize: 14 },
+  empty: { alignItems: 'center', padding: spacing.xl * 2, gap: spacing.sm },
+  emptyIconWrap: {
+    width: 64, height: 64, borderRadius: 32, backgroundColor: colors.bgCard,
+    alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xs,
+  },
+  emptyText: { color: colors.textSecondary, fontSize: 15 },
 
-  importCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  importCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
   importBox: {
     backgroundColor: colors.bgCard,
     borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border,
+    borderWidth: 1.5, borderColor: colors.borderStrong,
     borderStyle: 'dashed',
-    padding: spacing.xl,
+    padding: spacing.xl, gap: spacing.sm,
     alignItems: 'center', width: '100%',
   },
-  importIcon:  { fontSize: 40, marginBottom: spacing.md },
-  importTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginBottom: spacing.xs },
-  importHint:  { fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg },
-  importBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.sm, paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
-  },
-  importBtnText: { color: colors.bg, fontWeight: '800', fontSize: 14 },
-
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  importTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  importHint:  { fontSize: 14, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.md },
 });

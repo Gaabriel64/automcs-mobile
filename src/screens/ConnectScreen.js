@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
+import { Text, TextInput, Icon, Button } from '../components/ui';
 import { telepathService } from '../services/telepath';
 import { colors, spacing, radius, fonts } from '../theme';
 
@@ -64,7 +70,10 @@ const stepStyles = StyleSheet.create({
 function InputField({ label, icon, ...props }) {
   return (
     <View style={inputStyles.wrap}>
-      <Text style={inputStyles.label}>{icon ? `${icon}  ` : ''}{label}</Text>
+      <View style={inputStyles.labelRow}>
+        {icon ? <Icon name={icon} size={14} color={colors.textSecondary} /> : null}
+        <Text style={inputStyles.label}>{label}</Text>
+      </View>
       <TextInput style={inputStyles.input} placeholderTextColor={colors.textMuted} {...props} />
     </View>
   );
@@ -72,16 +81,16 @@ function InputField({ label, icon, ...props }) {
 
 const inputStyles = StyleSheet.create({
   wrap: { marginBottom: spacing.md },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.xs + 2 },
   label: {
-    fontSize: 11, fontWeight: '600', letterSpacing: 0.8,
-    color: colors.textSecondary, textTransform: 'uppercase',
-    marginBottom: spacing.xs,
+    fontSize: 12, fontWeight: '700', letterSpacing: 0.6,
+    color: colors.textSecondary,
   },
   input: {
     backgroundColor: colors.bgInput,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.md - 2,
     color: colors.textPrimary, fontSize: 15,
     fontFamily: fonts.mono,
   },
@@ -90,31 +99,19 @@ const inputStyles = StyleSheet.create({
 // ── Primary button ────────────────────────────────────────────────────────────
 function PrimaryButton({ label, onPress, disabled, loading }) {
   return (
-    <TouchableOpacity
-      style={[btnStyles.btn, disabled && btnStyles.disabled]}
+    <Button
+      label={label}
+      iconRight="arrow-forward"
       onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.8}
-    >
-      {loading
-        ? <ActivityIndicator color={colors.bg} size="small" />
-        : <Text style={btnStyles.label}>{label}</Text>}
-    </TouchableOpacity>
+      loading={loading}
+      disabled={disabled}
+      style={btnStyles.btn}
+    />
   );
 }
 
 const btnStyles = StyleSheet.create({
-  btn: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.sm,
-    paddingVertical: spacing.md,
-    alignItems: 'center', justifyContent: 'center',
-    marginTop: spacing.md,
-  },
-  disabled: { opacity: 0.45 },
-  label: {
-    color: colors.bg, fontSize: 15, fontWeight: '800', letterSpacing: 0.4,
-  },
+  btn: { marginTop: spacing.md },
 });
 
 // ── Error banner ──────────────────────────────────────────────────────────────
@@ -122,7 +119,7 @@ function ErrorBanner({ message }) {
   if (!message) return null;
   return (
     <View style={errStyles.wrap}>
-      <Text style={errStyles.icon}>⚠</Text>
+      <Icon name="alert-circle" size={18} color={colors.red} />
       <Text style={errStyles.text}>{message}</Text>
     </View>
   );
@@ -131,12 +128,11 @@ function ErrorBanner({ message }) {
 const errStyles = StyleSheet.create({
   wrap: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: 'rgba(224,92,92,0.1)',
-    borderWidth: 1, borderColor: 'rgba(224,92,92,0.3)',
-    borderRadius: radius.sm, padding: spacing.sm,
+    backgroundColor: 'rgba(255,107,143,0.10)',
+    borderWidth: 1, borderColor: 'rgba(255,107,143,0.35)',
+    borderRadius: radius.md, padding: spacing.sm + 2,
     marginTop: spacing.sm,
   },
-  icon: { color: colors.red, fontSize: 13, marginTop: 1 },
   text: { color: colors.red, fontSize: 13, flex: 1, lineHeight: 18 },
 });
 
@@ -204,7 +200,7 @@ export default function ConnectScreen({ navigation }) {
         <View style={styles.header}>
           <View style={styles.logoRing}>
             <View style={styles.logoInner}>
-              <Text style={styles.logoEmoji}>⚡</Text>
+              <Icon name="cube" size={36} color={colors.onAccent} />
             </View>
           </View>
           <Text style={styles.brand}>auto-mcs</Text>
@@ -224,7 +220,7 @@ export default function ConnectScreen({ navigation }) {
 
             <InputField
               label="IP address"
-              icon="🌐"
+              icon="globe-outline"
               placeholder="192.168.1.100"
               value={host}
               onChangeText={setHost}
@@ -233,7 +229,7 @@ export default function ConnectScreen({ navigation }) {
             />
             <InputField
               label="Telepath port"
-              icon="🔌"
+              icon="link-outline"
               placeholder="7001"
               value={port}
               onChangeText={setPort}
@@ -242,7 +238,7 @@ export default function ConnectScreen({ navigation }) {
 
             <ErrorBanner message={error} />
             <PrimaryButton
-              label="Connect →"
+              label="Connect"
               onPress={handleConnect}
               loading={loading}
               disabled={loading}
@@ -303,13 +299,14 @@ export default function ConnectScreen({ navigation }) {
 
             <ErrorBanner message={error} />
             <PrimaryButton
-              label="Confirm code →"
+              label="Confirm code"
               onPress={handleSubmitCode}
               loading={loading}
               disabled={loading}
             />
             <TouchableOpacity onPress={() => { setStep('connect'); setError(''); setPairCode(''); }} style={styles.backLink}>
-              <Text style={styles.backLinkText}>← Start over</Text>
+              <Icon name="arrow-back" size={16} color={colors.textSecondary} />
+              <Text style={styles.backLinkText}>Start over</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -398,6 +395,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.mono,
   },
 
-  backLink: { alignItems: 'center', marginTop: spacing.md, padding: spacing.sm },
+  backLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: spacing.md, padding: spacing.sm },
   backLinkText: { color: colors.textSecondary, fontSize: 13 },
 });

@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Switch, TextInput,
-  TouchableOpacity, Modal, Alert, ActivityIndicator
+  View,
+  StyleSheet,
+  ScrollView,
+  Switch,
+  TouchableOpacity,
+  Modal,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { Text, TextInput, Icon, SectionTitle } from '../components/ui';
 import { telepathService } from '../services/telepath';
 import { colors, spacing, radius, fonts } from '../theme';
 import Slider from '@react-native-community/slider';
@@ -35,7 +42,7 @@ function RamSlider({ value, onSave }) {
       <Text style={styles.rowLabel}>Dedicated RAM</Text>
       <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         {saving && <ActivityIndicator size="small" color={colors.accent} />}
-        {saved && !saving && <Text style={styles.savedMark}>✓</Text>}
+        {saved && !saving && <Icon name="checkmark-circle" size={16} color={colors.green} />}
         <View style={{ flex: 1 }}>
           <Slider
             style={{ width: '100%', height: 40 }}
@@ -67,7 +74,7 @@ function SimplePicker({ selectedValue, onValueChange, items }) {
     <>
       <TouchableOpacity style={styles.pickerBtn} onPress={() => setVisible(true)}>
         <Text style={styles.pickerValue}>{selected?.label ?? String(selectedValue ?? '—')}</Text>
-        <Text style={styles.pickerChevron}>▾</Text>
+        <Icon name="chevron-down" size={14} color={colors.textSecondary} />
       </TouchableOpacity>
       <Modal visible={visible} transparent animationType="fade">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setVisible(false)}>
@@ -131,7 +138,7 @@ function InputRow({ label, value, onSave, keyboardType = 'default', placeholder 
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.inputWrap}>
         {saving && <ActivityIndicator size="small" color={colors.accent} />}
-        {saved && !saving && <Text style={styles.savedMark}>✓</Text>}
+        {saved && !saving && <Icon name="checkmark-circle" size={16} color={colors.green} />}
         <TextInput
           style={styles.input}
           value={local}
@@ -156,7 +163,7 @@ function PickerRow({ label, value, onSave, items }) {
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.inputWrap}>
         {saving && <ActivityIndicator size="small" color={colors.accent} />}
-        {saved && !saving && <Text style={styles.savedMark}>✓</Text>}
+        {saved && !saving && <Icon name="checkmark-circle" size={16} color={colors.green} />}
         <SimplePicker
           selectedValue={value}
           onValueChange={async v => {
@@ -174,15 +181,6 @@ function PickerRow({ label, value, onSave, items }) {
 }
 
 // ── Section title ─────────────────────────────────────────────────────────────
-function SectionHeader({ title }) {
-  return (
-    <View style={styles.sectionHeader}>
-      <View style={styles.sectionStripe} />
-      <Text style={styles.sectionTitle}>{title.toUpperCase()}</Text>
-    </View>
-  );
-}
-
 // ── Constants ─────────────────────────────────────────────────────────────────
 const GAMEMODES = [
   { label: 'Survival', value: 0 },
@@ -285,7 +283,7 @@ export default function ServerSettingsScreen({ route, navigation }) {
   if (error) {
     return (
       <View style={styles.centered}>
-        <Text style={{ fontSize: 36 }}>⚠️</Text>
+        <Icon name="alert-circle" size={44} color={colors.red} />
         <Text style={styles.errorText}>{error}</Text>
       </View>
     );
@@ -301,7 +299,8 @@ export default function ServerSettingsScreen({ route, navigation }) {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <SectionHeader title="General" />
+      <SectionTitle title="General" icon="settings-outline" />
+      <View style={styles.card}>
       <InputRow label="Message of the day" value={props?.motd} onSave={v => saveProp('motd', v)} />
       <InputRow label="World name" value={props?.['level-name']} onSave={v => saveProp('level-name', v)} />
       <InputRow label="Seed" value={props?.['level-seed']} onSave={v => saveProp('level-seed', v)} />
@@ -311,7 +310,9 @@ export default function ServerSettingsScreen({ route, navigation }) {
       <InputRow label="Max players" value={String(props?.['max-players'] ?? '')} onSave={v => saveProp('max-players', parseInt(v) || 20)} keyboardType="number-pad" />
       <InputRow label="Port" value={String(props?.['server-port'] ?? '')} onSave={v => saveProp('server-port', parseInt(v) || 25565)} keyboardType="number-pad" />
 
-      <SectionHeader title="Gameplay" />
+      </View>
+      <SectionTitle title="Gameplay" icon="game-controller-outline" />
+      <View style={styles.card}>
       <SwitchRow label="PvP" value={isNotFalse(props?.pvp)} onSave={v => saveProp('pvp', v)} />
       <SwitchRow label="Command blocks" value={isBool(props?.['enable-command-block'])} onSave={v => saveProp('enable-command-block', v)} />
       <SwitchRow label="Allow flight" value={isBool(props?.['allow-flight'])} onSave={v => saveProp('allow-flight', v)} />
@@ -323,11 +324,15 @@ export default function ServerSettingsScreen({ route, navigation }) {
       <InputRow label="View distance" value={String(props?.['view-distance'] ?? '')} onSave={v => saveProp('view-distance', parseInt(v) || 10)} keyboardType="number-pad" />
       <InputRow label="Simulation distance" value={String(props?.['simulation-distance'] ?? '')} onSave={v => saveProp('simulation-distance', parseInt(v) || 10)} keyboardType="number-pad" />
 
-      <SectionHeader title="Network" />
+      </View>
+      <SectionTitle title="Network" icon="wifi-outline" />
+      <View style={styles.card}>
       <SwitchRow label="Online mode" value={isNotFalse(props?.['online-mode'])} onSave={v => saveProp('online-mode', v)} />
       <SwitchRow label="Whitelist" value={isBool(props?.['white-list'])} onSave={v => saveProp('white-list', v)} />
 
-      <SectionHeader title="auto-mcs" />
+      </View>
+      <SectionTitle title="auto-mcs" icon="hardware-chip-outline" />
+      <View style={styles.card}>
       <RamSlider value={g?.allocatedMemory ?? g?.allocatedmemory ?? ''} onSave={saveRam} />
       <SwitchRow label="Auto update" value={isNotFalse(g?.updateAuto ?? g?.updateauto)} onSave={saveAutoUpdate} />
       <InputRow label="Java flags" value={g?.customFlags ?? g?.customflags ?? ''} onSave={saveFlags} placeholder="-Xmx2G -Xms2G" />
@@ -353,10 +358,13 @@ export default function ServerSettingsScreen({ route, navigation }) {
         style={styles.restoreLink}
         onPress={() => navigation.navigate('BackupList', { serverName })}
       >
-        <Text style={styles.restoreLinkText}>📂 Manage backups</Text>
+        <Icon name="folder-open-outline" size={18} color={colors.accent} />
+        <Text style={styles.restoreLinkText}>Manage backups</Text>
       </TouchableOpacity>
 
-      <SectionHeader title="Advanced" />
+      </View>
+      <SectionTitle title="Advanced" icon="construct-outline" />
+      <View style={styles.card}>
       <InputRow label="IP address" value={props?.['server-ip'] ?? ''} onSave={v => saveProp('server-ip', v)} placeholder="all interfaces" />
       <InputRow label="Max build height" value={String(props?.['max-build-height'] ?? '')} onSave={v => saveProp('max-build-height', parseInt(v) || 256)} keyboardType="number-pad" />
       <InputRow label="Level type" value={props?.['level-type'] ?? ''} onSave={v => saveProp('level-type', v)} placeholder="normal" />
@@ -367,6 +375,8 @@ export default function ServerSettingsScreen({ route, navigation }) {
       <SwitchRow label="Enforce whitelist" value={isBool(props?.['enforce-whitelist'])} onSave={v => saveProp('enforce-whitelist', v)} />
       <SwitchRow label="Secure profiles" value={isNotFalse(props?.['enforce-secure-profile'])} onSave={v => saveProp('enforce-secure-profile', v)} />
       <InputRow label="Resource pack" value={props?.['resource-pack'] ?? ''} onSave={v => saveProp('resource-pack', v)} placeholder="URL" />
+
+      </View>
 
       <ServerManagement
         serverName={serverName}
@@ -385,7 +395,14 @@ const styles = StyleSheet.create({
   loadingText: { color: colors.textSecondary, fontSize: 14, marginTop: spacing.sm },
   errorText: { color: colors.red, textAlign: 'center', paddingHorizontal: spacing.lg, fontSize: 14 },
 
-  // Section header
+  // Section card
+  card: {
+    backgroundColor: colors.bgCard, borderRadius: radius.lg,
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: spacing.md, overflow: 'hidden',
+  },
+
+  // Section header (legacy)
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginTop: spacing.xl, marginBottom: spacing.xs,
@@ -402,9 +419,9 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 10, minHeight: 46,
-    borderBottomWidth: 1, borderBottomColor: 'rgba(99,143,196,0.06)',
+    borderBottomWidth: 1, borderBottomColor: colors.border,
   },
-  rowLabel: { color: colors.textPrimary, fontSize: 14, flex: 1, paddingRight: spacing.sm },
+  rowLabel: { color: colors.textPrimary, fontSize: 15, flex: 1, paddingRight: spacing.sm },
 
   // Input
   inputWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -465,6 +482,6 @@ const styles = StyleSheet.create({
   sliderTick: { color: colors.textMuted, fontSize: 10 },
   sliderValue: { color: colors.textPrimary, fontWeight: '700', minWidth: 48, textAlign: 'center', fontSize: 13 },
 
-  restoreLink: { paddingVertical: spacing.sm, marginTop: spacing.sm },
-  restoreLinkText: { color: colors.accentLight, fontWeight: '600', fontSize: 13 },
+  restoreLink: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: spacing.md },
+  restoreLinkText: { color: colors.accent, fontWeight: '700', fontSize: 14 },
 });

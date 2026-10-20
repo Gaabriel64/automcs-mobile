@@ -3,10 +3,19 @@
 // then running the steps on the machine hosting auto-mcs.
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Switch, TextInput, TouchableOpacity,
-  Modal, FlatList, Alert, ActivityIndicator, BackHandler,
+  View,
+  StyleSheet,
+  ScrollView,
+  Switch,
+  TouchableOpacity,
+  Modal,
+  FlatList,
+  Alert,
+  ActivityIndicator,
+  BackHandler,
 } from 'react-native';
-import { colors, spacing, radius } from '../theme';
+import { Text, TextInput, Icon, Button, SectionTitle } from '../components/ui';
+import { colors, spacing, radius, typeColor } from '../theme';
 import { telepathService } from '../services/telepath';
 import { SERVER_TYPES, fetchVersions, compareVersions } from '../services/versionSources';
 import { createServer, buildSteps, DEFAULT_SETTINGS } from '../services/createServer';
@@ -41,28 +50,20 @@ function levelTypesFor(version) {
   return LEVEL_TYPES;
 }
 
-function Section({ title }) {
-  return (
-    <View style={styles.sectionHeader}>
-      <View style={styles.sectionStripe} />
-      <Text style={styles.sectionTitle}>{title}</Text>
-    </View>
-  );
-}
-
-function Chips({ items, value, onChange }) {
+function Chips({ items, value, onChange, colorOf }) {
   return (
     <View style={styles.chips}>
       {items.map(it => {
         const active = it.value === value;
+        const c = colorOf ? colorOf(it.value) : colors.accent;
         return (
           <TouchableOpacity
             key={it.value}
-            style={[styles.chip, active && styles.chipActive]}
+            style={[styles.chip, active && { borderColor: c, backgroundColor: c + '26' }]}
             onPress={() => onChange(it.value)}
             activeOpacity={0.7}
           >
-            <Text style={[styles.chipText, active && styles.chipTextActive]}>{it.label}</Text>
+            <Text style={[styles.chipText, active && { color: c, fontWeight: '700' }]}>{it.label}</Text>
           </TouchableOpacity>
         );
       })}
@@ -206,9 +207,11 @@ export default function CreateServerScreen({ route, navigation }) {
               <View key={s.id} style={styles.stepRow}>
                 <View style={styles.stepIcon}>
                   {st === 'running' ? <ActivityIndicator size="small" color={colors.accent} />
-                    : <Text style={[styles.stepGlyph, st === 'done' && { color: colors.green }, st === 'error' && { color: colors.red }]}>
-                        {st === 'done' ? '✓' : st === 'error' ? '✕' : '○'}
-                      </Text>}
+                    : <Icon
+                        name={st === 'done' ? 'checkmark-circle' : st === 'error' ? 'close-circle' : 'ellipse-outline'}
+                        size={22}
+                        color={st === 'done' ? colors.green : st === 'error' ? colors.red : colors.textMuted}
+                      />}
                 </View>
                 <Text style={[styles.stepLabel, st === 'pending' && { color: colors.textMuted }]}>{s.label}</Text>
               </View>
@@ -220,12 +223,8 @@ export default function CreateServerScreen({ route, navigation }) {
           <View>
             <Text style={styles.error}>{failure}</Text>
             <Text style={styles.hint}>A server may have been partially created: check the server list before trying again.</Text>
-            <TouchableOpacity style={styles.btn} onPress={() => setPhase('form')}>
-              <Text style={styles.btnText}>Edit and retry</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.btn, styles.btnGhost]} onPress={() => navigation.popToTop()}>
-              <Text style={styles.btnGhostText}>Back to the list</Text>
-            </TouchableOpacity>
+            <Button icon="create-outline" label="Edit and retry" variant="secondary" onPress={() => setPhase('form')} style={{ marginTop: spacing.md }} />
+            <Button icon="arrow-back" label="Back to the list" variant="ghost" onPress={() => navigation.popToTop()} style={{ marginTop: spacing.sm }} />
           </View>
         ) : null}
       </ScrollView>
@@ -235,13 +234,13 @@ export default function CreateServerScreen({ route, navigation }) {
   // ── Formulaire ──
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Section title="Server" />
+      <SectionTitle title="Server" icon="cube-outline" />
       <Field label="Name">
         <TextBox value={name} onChangeText={setName} placeholder="My server" />
       </Field>
 
       <Field label="Type">
-        <Chips items={SERVER_TYPES.map(t => ({ label: t.label, value: t.id }))} value={type} onChange={changeType} />
+        <Chips items={SERVER_TYPES.map(t => ({ label: t.label, value: t.id }))} value={type} onChange={changeType} colorOf={typeColor} />
         {type === 'fabric' || type === 'quilt' ? (
           <Text style={styles.hint}>Fabric API is not installed automatically: add it afterwards from the Mods tab.</Text>
         ) : null}
@@ -263,17 +262,11 @@ export default function CreateServerScreen({ route, navigation }) {
             placeholder={latest || '1.21.4'}
             autoCapitalize="none"
           />
-          <TouchableOpacity
-            style={[styles.pickBtn, !(versions && versions.length) && styles.btnDisabled]}
-            disabled={!(versions && versions.length)}
-            onPress={() => setPickerOpen(true)}
-          >
-            <Text style={styles.pickBtnText}>List</Text>
-          </TouchableOpacity>
+          <Button compact icon="list" label="List" variant="secondary" onPress={() => setPickerOpen(true)} disabled={!(versions && versions.length)} />
         </View>
       </Field>
 
-      <Section title="Game" />
+      <SectionTitle title="Game" icon="game-controller-outline" />
       <Field label="Game mode"><Chips items={GAMEMODES} value={settings.gamemode} onChange={v => setting('gamemode', v)} /></Field>
       <Field label="Difficulty"><Chips items={DIFFICULTIES} value={settings.difficulty} onChange={v => setting('difficulty', v)} /></Field>
       <Field label="World type">
@@ -284,19 +277,20 @@ export default function CreateServerScreen({ route, navigation }) {
       <Field label="Max players"><TextBox value={settings.max_players} onChangeText={v => setting('max_players', v.replace(/\D/g, ''))} keyboardType="number-pad" /></Field>
       <Field label="Port"><TextBox value={port} onChangeText={v => setPort(v.replace(/\D/g, ''))} keyboardType="number-pad" /></Field>
 
+      <View style={styles.toggleCard}>
       <ToggleRow label="Player vs player (PvP)" value={settings.pvp} onChange={v => setting('pvp', v)} />
       <ToggleRow label="Mob spawning" value={settings.spawn_creatures} onChange={v => setting('spawn_creatures', v)} />
       <ToggleRow label="Spawn protection" value={settings.spawn_protection} onChange={v => setting('spawn_protection', v)} />
       <ToggleRow label="Command blocks" value={settings.command_blocks} onChange={v => setting('command_blocks', v)} />
       <ToggleRow label="Keep inventory" value={settings.keep_inventory} onChange={v => setting('keep_inventory', v)} />
       <ToggleRow label="Daylight/weather cycle" value={settings.daylight_weather_cycle} onChange={v => setting('daylight_weather_cycle', v)} />
+      </View>
+
       <Field label="Random tick speed">
         <TextBox value={settings.random_tick_speed} onChangeText={v => setting('random_tick_speed', v.replace(/\D/g, ''))} keyboardType="number-pad" />
       </Field>
 
-      <TouchableOpacity style={[styles.btn, { marginTop: spacing.xl }]} onPress={start} activeOpacity={0.8}>
-        <Text style={styles.btnText}>Create server</Text>
-      </TouchableOpacity>
+      <Button icon="add-circle-outline" label="Create server" onPress={start} style={{ marginTop: spacing.xl }} />
       <Text style={styles.hint}>Geyser (Bedrock), playit.gg and mods are configured afterwards from the server.</Text>
 
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
@@ -343,8 +337,8 @@ const styles = StyleSheet.create({
   field: { marginTop: spacing.md },
   label: { color: colors.textSecondary, fontSize: 12, marginBottom: 6 },
   input: {
-    backgroundColor: colors.bgInput, color: colors.textPrimary, borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm, paddingVertical: 9, fontSize: 14,
+    backgroundColor: colors.bgInput, color: colors.textPrimary, borderRadius: radius.md,
+    paddingHorizontal: spacing.md, paddingVertical: 11, fontSize: 15,
     borderWidth: 1, borderColor: colors.border,
   },
   versionRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
@@ -363,9 +357,13 @@ const styles = StyleSheet.create({
   chipText: { color: colors.textSecondary, fontSize: 13 },
   chipTextActive: { color: colors.accent, fontWeight: '700' },
 
+  toggleCard: {
+    backgroundColor: colors.bgCard, borderRadius: radius.lg, marginTop: spacing.md,
+    borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md,
+  },
   toggleRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(99,143,196,0.06)',
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   toggleLabel: { color: colors.textPrimary, fontSize: 14, flex: 1, paddingRight: spacing.sm },
 

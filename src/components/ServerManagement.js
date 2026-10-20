@@ -3,9 +3,15 @@
 // ServerObject / AddonManager methods through Telepath.
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, Switch, TextInput, TouchableOpacity,
-  Alert, ActivityIndicator, Linking,
+  View,
+  StyleSheet,
+  Switch,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  Linking,
 } from 'react-native';
+import { Text, TextInput, Button as UIButton, SectionTitle } from './ui';
 import { telepathService } from '../services/telepath';
 import { fetchFreshConfig } from '../utils/config';
 import { colors, spacing, radius } from '../theme';
@@ -33,15 +39,6 @@ function versionAtLeast(a, b) {
 
 const notSupported = e => /404|not found/i.test(String(e?.message || ''));
 
-function Section({ title }) {
-  return (
-    <View style={styles.sectionHeader}>
-      <View style={styles.sectionStripe} />
-      <Text style={styles.sectionTitle}>{title}</Text>
-    </View>
-  );
-}
-
 function ToggleRow({ label, hint, value, onChange, disabled, loading }) {
   return (
     <View style={styles.row}>
@@ -65,18 +62,18 @@ function ToggleRow({ label, hint, value, onChange, disabled, loading }) {
   );
 }
 
-function Button({ label, onPress, disabled, danger, loading }) {
+// Adapter over the shared button: `danger` = outlined red, `primary` = brand green
+function Button({ label, onPress, disabled, danger, primary, loading, icon }) {
   return (
-    <TouchableOpacity
-      style={[styles.btn, danger && styles.btnDanger, (disabled || loading) && styles.btnDisabled]}
+    <UIButton
+      label={label}
+      icon={icon}
       onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.7}
-    >
-      {loading
-        ? <ActivityIndicator color={danger ? colors.red : colors.accent} />
-        : <Text style={[styles.btnText, danger && styles.btnTextDanger]}>{label}</Text>}
-    </TouchableOpacity>
+      disabled={disabled}
+      loading={loading}
+      variant={danger ? 'danger' : primary ? 'primary' : 'secondary'}
+      style={{ marginTop: spacing.sm }}
+    />
   );
 }
 
@@ -301,7 +298,8 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
 
   return (
     <View>
-      <Section title="Startup" />
+      <SectionTitle title="Startup" icon="power-outline" />
+      <View style={styles.groupCard}>
       <ToggleRow
         label="Start with auto-mcs"
         hint="Starts this server automatically when auto-mcs starts (auto-mcs 1.3+)"
@@ -310,8 +308,9 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
         loading={busy === 'autostart'}
         disabled={!!busy}
       />
+      </View>
 
-      <Section title="playit.gg (access from the Internet)" />
+      <SectionTitle title="playit.gg" icon="globe-outline" />
       {proxyLinked === null ? (
         <ActivityIndicator color={colors.accent} style={{ marginVertical: spacing.md }} />
       ) : proxyLinked === 'error' ? (
@@ -319,10 +318,10 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
           <Text style={styles.cardText}>
             Could not check playit.gg on this server (no response). Try again in a moment.
           </Text>
-          <Button label="Retry" onPress={() => { setProxyLinked(null); refreshState(); }} />
+          <Button icon="refresh" label="Retry" onPress={() => { setProxyLinked(null); refreshState(); }} />
         </View>
       ) : proxyLinked ? (
-        <View>
+        <View style={styles.groupCard}>
           <ToggleRow
             label="Enable playit proxy"
             hint="Gives this server a public address, without opening a port"
@@ -331,8 +330,8 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
             loading={busy === 'proxy'}
             disabled={!!busy}
           />
-          <Button label="Open the playit panel" onPress={openPlayitPanel} loading={busy === 'panel'} disabled={!!busy} />
-          <Button label="Unlink the playit account" onPress={unlinkPlayit} loading={busy === 'unlink'} disabled={!!busy} danger />
+          <Button icon="open-outline" label="Open the playit panel" onPress={openPlayitPanel} loading={busy === 'panel'} disabled={!!busy} />
+          <Button icon="unlink" label="Unlink the playit account" onPress={unlinkPlayit} loading={busy === 'unlink'} disabled={!!busy} danger />
         </View>
       ) : (
         <View style={styles.card}>
@@ -340,7 +339,7 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
             playit.gg is not set up yet. 1) Open the site and create or sign in to your account,
             2) copy the code shown, 3) paste it here, then authorize.
           </Text>
-          <Button label="1 · Open playit.gg" onPress={() => Linking.openURL(PLAYIT_SETUP_URL)} disabled={!!busy} />
+          <Button icon="open-outline" label="1 · Open playit.gg" onPress={() => Linking.openURL(PLAYIT_SETUP_URL)} disabled={!!busy} />
           <TextInput
             style={styles.input}
             value={code}
@@ -350,12 +349,13 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
             autoCapitalize="none"
             autoCorrect={false}
           />
-          <Button label="3 · Authorize" onPress={linkPlayit} loading={busy === 'link'} disabled={!!busy || !code.trim()} />
+          <Button primary icon="checkmark" label="3 · Authorize" onPress={linkPlayit} loading={busy === 'link'} disabled={!!busy || !code.trim()} />
           <Text style={styles.hint}>Installing the playit agent on the server can take a minute.</Text>
         </View>
       )}
 
-      <Section title="Bedrock (Geyser)" />
+      <SectionTitle title="Bedrock (Geyser)" icon="phone-portrait-outline" />
+      <View style={styles.groupCard}>
       <ToggleRow
         label="Bedrock support"
         hint={
@@ -368,8 +368,9 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
         loading={busy === 'geyser'}
         disabled={!!busy || !geyserSupported}
       />
+      </View>
 
-      <Section title="Rename" />
+      <SectionTitle title="Rename" icon="create-outline" />
       <View style={styles.card}>
         <TextInput
           style={styles.input}
@@ -380,6 +381,7 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
           autoCorrect={false}
         />
         <Button
+          icon="create-outline"
           label="Rename the server"
           onPress={renameServer}
           loading={busy === 'rename'}
@@ -388,9 +390,9 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
         {running ? <Text style={styles.hint}>The server must be stopped.</Text> : null}
       </View>
 
-      <Section title="Danger zone" />
+      <SectionTitle title="Danger zone" icon="warning-outline" color={colors.red} />
       {!showDelete ? (
-        <Button label="Delete this server…" onPress={() => setShowDelete(true)} disabled={!!busy} danger />
+        <Button icon="trash-outline" label="Delete this server…" onPress={() => setShowDelete(true)} disabled={!!busy} danger />
       ) : (
         <View style={[styles.card, styles.cardDanger]}>
           <Text style={styles.cardText}>
@@ -408,6 +410,7 @@ export default function ServerManagement({ serverName, cfg, onCfgChanged, naviga
             autoCorrect={false}
           />
           <Button
+            icon="trash"
             label="Delete permanently"
             onPress={deleteServer}
             loading={busy === 'delete'}
@@ -431,16 +434,19 @@ const styles = StyleSheet.create({
   sectionStripe: { width: 3, height: 14, borderRadius: 2, backgroundColor: colors.accent },
   sectionTitle: { fontSize: 10, fontWeight: '800', letterSpacing: 2, color: colors.accent, textTransform: 'uppercase' },
 
+  groupCard: {
+    backgroundColor: colors.bgCard, borderRadius: radius.lg,
+    borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingBottom: spacing.xs,
+  },
   row: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 10, minHeight: 46,
-    borderBottomWidth: 1, borderBottomColor: 'rgba(99,143,196,0.06)',
+    paddingVertical: 12, minHeight: 52,
   },
-  rowLabel: { color: colors.textPrimary, fontSize: 14 },
+  rowLabel: { color: colors.textPrimary, fontSize: 15 },
   hint: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
 
   card: {
-    backgroundColor: colors.bgCard, borderRadius: radius.md, padding: spacing.md,
+    backgroundColor: colors.bgCard, borderRadius: radius.lg, padding: spacing.md,
     borderWidth: 1, borderColor: colors.border, gap: spacing.sm, marginTop: spacing.sm,
   },
   cardDanger: { borderColor: colors.red },
