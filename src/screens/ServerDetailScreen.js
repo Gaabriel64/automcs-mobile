@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   Pressable,
   ScrollView,
+  Image,
   Platform,
   Alert,
   Keyboard,
@@ -254,6 +255,29 @@ function EmptyState({ icon, title, text }) {
   );
 }
 
+// ── Player avatar ─────────────────────────────────────────────────────────────
+// Head of the player skin from mc-heads.net, which accepts a username directly. Only valid
+// Java usernames are requested (Bedrock/Floodgate names start with "." and do not resolve).
+// The initial stays underneath: it is what shows while loading, offline, or on error.
+const VALID_USERNAME = /^[A-Za-z0-9_]{1,16}$/;
+
+function PlayerAvatar({ name }) {
+  const [failed, setFailed] = useState(false);
+  const showHead = VALID_USERNAME.test(name) && !failed;
+  return (
+    <View style={playerStyles.avatar}>
+      <Text style={playerStyles.avatarText}>{name[0].toUpperCase()}</Text>
+      {showHead ? (
+        <Image
+          source={{ uri: `https://mc-heads.net/avatar/${name}/128` }}
+          style={playerStyles.avatarImage}
+          onError={() => setFailed(true)}
+        />
+      ) : null}
+    </View>
+  );
+}
+
 // ── Players tab ───────────────────────────────────────────────────────────────
 function PlayersTab({ runData }) {
   const playerList = runData?.['player-list'] || {};
@@ -280,9 +304,7 @@ function PlayersTab({ runData }) {
       <Text style={playerStyles.count}>{players.length} online</Text>
       {players.map((name, i) => (
         <View key={i} style={playerStyles.row}>
-          <View style={playerStyles.avatar}>
-            <Text style={playerStyles.avatarText}>{name[0].toUpperCase()}</Text>
-          </View>
+          <PlayerAvatar name={name} />
           <Text style={playerStyles.name}>{name}</Text>
           <TouchableOpacity style={playerStyles.kickBtn} onPress={() => kick(name)} activeOpacity={0.7}>
             <Icon name="exit-outline" size={15} color={colors.red} />
@@ -303,10 +325,11 @@ const playerStyles = StyleSheet.create({
     marginHorizontal: spacing.md, marginTop: spacing.sm, padding: spacing.md,
   },
   avatar: {
-    width: 40, height: 40, borderRadius: radius.sm,
+    width: 44, height: 44, borderRadius: radius.sm, overflow: 'hidden',
     backgroundColor: colors.accentDim,
     alignItems: 'center', justifyContent: 'center',
   },
+  avatarImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   avatarText: { color: colors.accent, fontWeight: '800', fontSize: 16 },
   name: { flex: 1, color: colors.textPrimary, fontSize: 16, fontWeight: '600' },
   kickBtn: {

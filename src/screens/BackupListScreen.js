@@ -10,6 +10,22 @@ import { Text, Icon, Button } from '../components/ui';
 import { telepathService } from '../services/telepath';
 import { colors, spacing, radius } from '../theme';
 
+// `size` is in bytes and `date` a modification timestamp in seconds (os.stat values)
+function formatSize(bytes) {
+  if (!bytes) return '—';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+  return (bytes / 1073741824).toFixed(2) + ' GB';
+}
+
+function formatDate(value) {
+  const n = Number(value);
+  if (value !== '' && value != null && Number.isFinite(n) && n > 1e8) {
+    return new Date(n * 1000).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  }
+  return value ? String(value) : 'Unknown date';
+}
+
 export default function BackupListScreen({ route, navigation }) {
   const { serverName } = route.params;
   const [backups, setBackups] = useState([]);
@@ -18,8 +34,9 @@ export default function BackupListScreen({ route, navigation }) {
 
   const loadBackups = async () => {
     try {
+      await telepathService.openServer(serverName);
       await telepathService._get('BackupManager/_update_data');
-      const list = await telepathService._get('BackupManager/return_backup_list');
+      const list = await telepathService.getBackupList();
       setBackups(Array.isArray(list) ? list : []);
     } catch (e) {
       Alert.alert('Error', e.message);
@@ -33,14 +50,19 @@ export default function BackupListScreen({ route, navigation }) {
   const handleRestore = (backup) => {
     Alert.alert(
       'Restore',
-      `Restore "${backup.name}"? This will overwrite the current world.`,
+      `Restore the backup from ${formatDate(backup.date)}? This will overwrite the current world.`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Restore', style: 'destructive', onPress: async () => {
-          setRestoring(backup.name);
+          setRestoring(backup.path);
           try {
-            await telepathService._post('BackupManager/restore', { backup_name: backup.name });
-            Alert.alert('Success', 'Backup restored. The server will restart if needed.');
+            await telepathService.openServer(serverName);
+            const result = await telepathService.restoreBackup(backup);
+            if (!result) {
+              Alert.alert('Server running', 'Stop the server before restoring a backup.');
+              return;
+            }
+            Alert.alert('Success', 'Backup restored.');
             navigation.goBack();
           } catch (e) {
             const msg = typeof e === 'string' ? e : e?.message || e?.detail || JSON.stringify(e);
@@ -48,15 +70,9 @@ export default function BackupListScreen({ route, navigation }) {
           } finally {
             setRestoring(null);
           }
-        }}
+        } },
       ]
     );
-  };
-
-  const formatSize = (bytes) => {
-    if (!bytes) return '—';
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / 1048576).toFixed(1) + ' MB';
   };
 
   if (loading) return (
@@ -77,11 +93,7 @@ export default function BackupListScreen({ route, navigation }) {
               <Icon name="archive" size={22} color={colors.accent} />
             </View>
             <View style={styles.info}>
-              <Text style={styles.name} numberOfLines={2}>{item.name || 'Backup'}</Text>
-              <View style={styles.metaRow}>
-                <Icon name="time-outline" size={13} color={colors.textMuted} />
-                <Text style={styles.meta}>{item.date || '—'}</Text>
-              </View>
+              <Text style={styles.name} numberOfLines={2}>{formatDate(item.date)}</Text>
               <View style={styles.metaRow}>
                 <Icon name="document-outline" size={13} color={colors.textMuted} />
                 <Text style={styles.meta}>{formatSize(item.size)}</Text>
@@ -93,8 +105,8 @@ export default function BackupListScreen({ route, navigation }) {
               icon="refresh"
               label="Restore"
               onPress={() => handleRestore(item)}
-              loading={restoring === item.name}
-              disabled={restoring === item.name}
+              loading={restoring === item.path}
+              disabled={!!restoring}
             />
           </View>
         )}

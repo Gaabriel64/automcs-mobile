@@ -366,6 +366,27 @@ class TelepathService {
     }, 120000);
   }
 
+  // --- Backups ---
+  // ui-fixes (1.3.x) gave return_backup_list an optional `fetch_metadata` parameter, which makes
+  // the endpoint a POST; older servers expose a GET without parameters (405 on POST).
+  // metadata is skipped: it opens every backup archive and is not needed for the list.
+  async getBackupList() {
+    try {
+      return await this._post('BackupManager/return_backup_list', { fetch_metadata: false });
+    } catch (e) {
+      if (/405|not allowed/i.test(String(e?.message))) return this._get('BackupManager/return_backup_list');
+      throw e;
+    }
+  }
+
+  // restore() reads `backup_obj.path` on the server, so it needs an object, not a name:
+  // the server rebuilds it from a dict marked `__reconstruct__` (like the desktop client).
+  // Returns null when the server is running (restore is refused).
+  async restoreBackup(backup) {
+    const backup_obj = { ...backup, __reconstruct__: 'RemoteBackupObject', _telepath_data: backup };
+    return this._fetch('BackupManager/restore', { method: 'POST', body: JSON.stringify({ backup_obj }) }, 600000);
+  }
+
   // --- Server creation (see services/createServer.js) ---
   async checkFreeSpace() { return this._get('main/check_free_space'); }
   async createCall(endpoint, body, timeoutMs) {
